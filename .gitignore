@@ -1,0 +1,10 @@
+**/.ipynb_checkpoints
+**/__pycache__
+*.npy
+data
+logs*
+.idea/*
+*.so
+runs/
+datasets/
+profiler_logs/
