@@ -4,3 +4,7 @@
 [submodule "thirdparty/PoseLib"]
 	path = thirdparty/PoseLib
 	url = https://github.com/PoseLib/PoseLib.git
+[submodule "thirdparty/SuperPoint"]
+	path = thirdparty/SuperPoint
+	url = https://github.com/rpautrat/SuperPoint.git
+	branch = master
