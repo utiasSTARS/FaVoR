@@ -20,7 +20,7 @@ class CambridgeDataloader(Dataloader):
     def load_data(self) -> None:
         # Create the camera
         focal = 0
-        with open(path.join(self.data_path, 'reconstruction.nvm'), 'r') as f:
+        with open(path.join(self.scene_folder, 'reconstruction.nvm'), 'r') as f:
             reconstruction = f.readlines()
             num_cams = int(reconstruction[2])
             for i in range(3, 3 + num_cams):
@@ -40,7 +40,7 @@ class CambridgeDataloader(Dataloader):
         self.camera = Camera(W, H, focal, focal, cx, cy)
 
         # load ground truth data lines:
-        ground_truth_train_path = path.join(self.data_path, 'dataset_test.txt')
+        ground_truth_train_path = path.join(self.scene_folder, 'dataset_test.txt')
         print_info(f"Loading training data from {ground_truth_train_path}")
 
         with open(ground_truth_train_path, 'r') as file:

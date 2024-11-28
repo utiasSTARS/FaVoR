@@ -8,6 +8,8 @@ import numpy as np
 import cv2
 from typing import Tuple, List
 
+from scipy.optimize import least_squares
+
 
 def mnn_matcher(desc1: np.ndarray, desc2: np.ndarray, match_thr: float = 0.9) -> np.ndarray:
     """
@@ -94,7 +96,7 @@ def geometric_check(
 
 
 def patch_creator(
-        target_map: np.ndarray, pt: Tuple[int, int], patch: int, hwc: bool = False) -> np.ndarray:
+        target_map: np.ndarray, pt: Tuple[float, float], patch: int, hwc: bool = False) -> np.ndarray:
     """
     Extracts a square patch around a given point from the target map.
 
@@ -110,9 +112,142 @@ def patch_creator(
     # Compute patch boundaries
     r_x_0, r_y_0 = pt[1] - patch, pt[0] - patch
     r_x_1, r_y_1 = pt[1] + patch + 1, pt[0] + patch + 1
+    # cast to int
+    r_x_0, r_y_0 = int(r_x_0), int(r_y_0)
+    r_x_1, r_y_1 = int(r_x_1), int(r_y_1)
 
     # Extract patch based on format
     if hwc:
         return target_map[r_x_0:r_x_1, r_y_0:r_y_1, ...]
 
     return target_map[..., r_x_0:r_x_1, r_y_0:r_y_1]
+
+
+def triangulate_point(
+        T_wc_list: List[np.ndarray],
+        K: np.ndarray,
+        pts: List[Tuple[float, float]],
+        patch_size_half: int = 4
+) -> Tuple[np.ndarray, List[np.ndarray], float, float, float]:
+    """
+    Triangulates a 3D point from multiple camera poses and computes the bounding box size and location.
+
+    Args:
+        T_wc_list (List[np.ndarray]): List of 4x4 transformation matrices from world to camera coordinates.
+        K (np.ndarray): Intrinsic matrix of the camera (3x3).
+        pts (List[Tuple[float, float]]): List of 2D points in the image planes of the cameras.
+        patch_size_half (int, optional): Half of the patch size for bounding box calculation. Default is 4.
+
+    Returns:
+        Tuple:
+            - np.ndarray: Estimated 3D point in world coordinates (shape: 3,).
+            - List[np.ndarray]: Refined 2D points projected onto all camera frames.
+            - float: Bounding box size.
+            - float: Dummy value (kept for compatibility).
+            - float: Residual cost or error measure.
+    """
+    # Invert transformations to get camera-to-world matrices
+    T_cw_list = [np.linalg.inv(T_wc) for T_wc in T_wc_list]
+
+    # Normalize points using the inverse intrinsic matrix
+    pts_norm = np.zeros((len(T_cw_list), 2))
+    K_inv = np.linalg.inv(K)
+    for i in range(len(T_cw_list)):
+        pts_norm[i] = (K_inv @ np.array([pts[i][0], pts[i][1], 1.0]))[:2]
+
+    # Use the first camera as the reference
+    T_cw_0 = T_cw_list[0]
+    M_0 = T_cw_0[:3, :]  # Projection matrix for the first camera
+
+    # Determine the camera pose with the largest baseline
+    max_baseline = -np.inf
+    T_cw_a = None
+    pt_a = None
+    for i in range(1, len(T_cw_list)):
+        baseline = np.linalg.norm(T_cw_list[i][:3, 3] - T_cw_0[:3, 3])
+        if baseline > max_baseline:
+            max_baseline = baseline
+            T_cw_a = T_cw_list[i]
+            pt_a = pts_norm[i]
+    M_1 = T_cw_a[:3, :]  # Projection matrix for the camera with the largest baseline
+
+    # Triangulate the point using the Direct Linear Transform (DLT) method
+    pt_w_h = cv2.triangulatePoints(M_0, M_1, pts_norm[0], pt_a)
+    pt_w_h /= pt_w_h[3]  # Convert to Euclidean coordinates
+    pt_w_est = pt_w_h.flatten()[:3]  # Estimated 3D point
+
+    # Transformations for further refinement
+    R_cw_a = T_cw_a[:3, :3]
+    t_cw_a = T_cw_a[:3, 3]
+    R_wc_a = R_cw_a.T
+    t_wc_a = -R_wc_a @ t_cw_a
+    pt_ca = R_cw_a @ pt_w_est + t_cw_a
+
+    alpha, beta, rho = pt_ca[0] / pt_ca[2], pt_ca[1] / pt_ca[2], 1.0 / pt_ca[2]
+
+    # Define cost function for optimization
+
+    c = K_inv @ np.array([1., 1., .0])
+    c_2 = c.T @ c
+
+    def cost_function(params, *args):
+        pts_norm, T_cw_list = args
+        alpha, beta, rho = params
+
+        n_measures = len(pts_norm)
+        r = np.zeros(n_measures)
+
+        for i, T_cw_i in enumerate(T_cw_list):
+            z_meas = pts_norm[i]
+
+            R_cw_i = T_cw_i[:3, :3]
+            t_cw_i = T_cw_i[:3, 3]
+
+            # compute model
+            dR_ia = R_cw_i @ R_wc_a
+            dt_ia = R_cw_i @ t_wc_a + t_cw_i
+            p_ci = dR_ia @ np.array([alpha, beta, 1.]) + rho * dt_ia
+            z_hat = p_ci[:2] / p_ci[2]
+
+            # compute the error
+            e = z_meas - z_hat
+
+            # compute the norm for the Geman-McClure robust loss
+            u = np.sqrt(e.T @ e)
+
+            # Geman-McClure robust loss
+            r[i] = 0.5 * c_2 * u ** 2 / (c_2 + u ** 2)
+
+        return r
+
+    initial_params = np.array([alpha, beta, rho])  # Initial guess of parameters
+    args = (pts_norm, T_cw_list)  # Additional arguments needed for the cost function
+    result = least_squares(cost_function, initial_params, args=args, method='lm')
+
+    if not result.success:
+        # print_warning("Optimization failed")
+        return np.array([]), [], 0, 0, 1e6
+
+    alpha, beta, rho = result.x
+
+    u = np.linalg.norm(K_inv @ np.array([1., 1., .0]))
+    c = 0.5 * c_2 * u ** 2 / (c_2 + u ** 2)
+    # check if outlier
+    if (result.fun == c).any() or rho <= 0.01:  # allow 1. pixel error
+        return np.array([]), [], 0, 0, 1e6
+
+    # Refine the 3D point estimate
+    pt_w_est = np.linalg.inv(T_cw_a) @ np.array([alpha / rho, beta / rho, 1.0 / rho, 1.0])
+
+    # Project points into all cameras
+    refined_points_out = []
+    sizes = []
+    for T_cw_i in T_cw_list:
+        pt_c = T_cw_i[:3, :] @ pt_w_est
+        pt_c /= pt_c[2]
+        sizes.append(np.linalg.norm(T_cw_i[:3, 3] - pt_w_est[:3]) * patch_size_half / K[0, 0])
+        pt_proj = K @ pt_c
+        refined_points_out.append(pt_proj[:2] / pt_proj[2])
+
+    size = 2 * np.min(sizes)
+    return pt_w_est[:3], refined_points_out, size, 0.0, 1e6
