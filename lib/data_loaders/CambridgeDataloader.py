@@ -1,10 +1,11 @@
-from os import path
 import numpy as np
-from scipy.spatial.transform._rotation import Rotation
 import cv2
+from os import path
+from scipy.spatial.transform._rotation import Rotation
+from typing import Tuple
 
 from lib.camera_models.camera import Camera
-from lib.utils_svfr.svfr_utils import print_info
+from lib.utils_svfr.log_utils import print_info
 from lib.data_loaders.Dataloader import Dataloader
 
 
@@ -16,7 +17,7 @@ class CambridgeDataloader(Dataloader):
                 "Scene must be one among: 'GreatCourt', 'KingsCollege', 'OldHospital', 'ShopFacade', 'StMarysChurch', 'Street'")
         super().__init__(data_path, scene)
 
-    def load_data(self):
+    def load_data(self) -> None:
         # Create the camera
         focal = 0
         with open(path.join(self.data_path, 'reconstruction.nvm'), 'r') as f:
@@ -50,7 +51,7 @@ class CambridgeDataloader(Dataloader):
         # order lines strings
         self.gt_lines = sorted(self.gt_lines)
 
-    def line2data(self, line):
+    def line2data(self, line) -> Tuple[np.ndarray, np.ndarray]:
         img_path, x, y, z, qw, qx, qy, qz = line.split()
 
         R = Rotation.from_quat([float(qx), float(qy), float(qz), float(qw)]).as_matrix()

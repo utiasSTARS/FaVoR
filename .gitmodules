@@ -1,6 +1,6 @@
 [submodule "thirdparty/ALIKE"]
 	path = thirdparty/ALIKE
-	url = git@github.com:Shiaoming/ALIKE.git
+	url = https://github.com/Shiaoming/ALIKE.git
 [submodule "thirdparty/PoseLib"]
 	path = thirdparty/PoseLib
 	url = https://github.com/PoseLib/PoseLib.git

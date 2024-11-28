@@ -1,23 +1,23 @@
-from os import path
 import numpy as np
-from scipy.spatial.transform._rotation import Rotation
 import cv2
+from os import path
+from scipy.spatial.transform._rotation import Rotation
+from typing import Tuple
 
 from lib.camera_models.camera import Camera
-from lib.utils_svfr.svfr_utils import print_info
+from lib.utils_svfr.log_utils import print_info
 from lib.data_loaders.Dataloader import Dataloader
 
 
-class CambridgeDataloader(Dataloader):
+class SevScenesDataloader(Dataloader):
 
     def __init__(self, data_path, scene):
         if not (scene in ['chess', 'pumpkin', 'fire', 'heads', 'office', 'redkitchen', 'stairs']):
             raise Exception(
                 "Scene must be one among: 'chess', 'pumpkin', 'fire', 'heads', 'office', 'redkitchen', 'stairs'")
-
         super().__init__(data_path, scene)
 
-    def load_data(self):
+    def load_data(self) -> None:
         # Create the camera
         ground_truth_train_path = path.join(self.data_path, "COLMAP_gt", self.scene + "_test.txt")
 
@@ -49,7 +49,7 @@ class CambridgeDataloader(Dataloader):
         # order lines strings
         self.gt_lines = sorted(self.gt_lines)
 
-    def line2data(self, line):
+    def line2data(self, line) -> Tuple[np.ndarray, np.ndarray]:
         img_path, qw, qx, qy, qz, x, y, z, _ = line.split()
 
         R = Rotation.from_quat([float(qx), float(qy), float(qz), float(qw)]).as_matrix()
