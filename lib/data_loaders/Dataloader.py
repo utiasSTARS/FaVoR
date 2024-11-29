@@ -3,9 +3,15 @@ from os import path
 from tqdm import tqdm
 from typing import Generator, Tuple
 
+"""
+Data Loader
+====================================
+This module provides a base class for data loaders.
+"""
+
 
 class Dataloader:
-
+    """ Base class for data loaders. """
     def __init__(self, data_path, scene):
         """
         Initializes the Dataloader with the given data path and scene name.

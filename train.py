@@ -2,6 +2,7 @@ import atexit
 import sys
 import time
 
+import mmengine
 from torch import nn
 from torch.nn import CosineSimilarity
 from tqdm import tqdm
@@ -13,142 +14,194 @@ import torch.nn.functional as F
 from lib import utils
 from lib.models import SVFRmodel
 
-from lib.utils_svfr.svfr_utils import print_info, print_success, \
-    get_training_rays, create_voxels_args, load_model, resume_model, \
+from lib.utils_svfr.svfr_utils import get_training_rays, create_voxels_args, load_model, resume_model, \
     create_new_model, store_model, seed_env, init_device, parse_args, create_dataloader, create_tracker, redirect2log, \
-    print_stats
-from lib.utils_svfr.log_utils import print_error
-from lib.utils_svfr.visualizer_utils import test_visualizer
+    print_stats, model2channels
+from lib.utils_svfr.log_utils import print_error, print_info, print_success
+
+import time
+import torch
+import torch.nn.functional as F
+from tqdm import tqdm
+from torch.nn import CosineSimilarity
+import numpy as np
+import atexit
 
 
-def train(model: SVFRmodel, cfg, K, device, tracks, map_track, channels):
+def train(model: SVFRmodel, cfg: mmengine.Config, K: np.ndarray, device: torch.device, tracks, map_track,
+          channels: int):
+    """Train the SVFR model on voxel features."""
+    # Setup parameters
     max_points = 1500 if cfg.data.dataset_type.lower() == '7scenes' else 10000
     max_voxels = min(max_points, len(tracks))
-
     count_success_voxels = 0
+
+    # Register model saving on exit
     atexit.register(
         lambda: store_model(model, cfg.root_dir, 'model_partial') if count_success_voxels > 0 else print_info(
             "No voxels trained"))
 
-    all_psnrs = []
-    all_times = []
-
+    # Statistics tracking
+    all_psnrs, all_times = [], []
     cos = CosineSimilarity(dim=1, eps=1e-6)
+
+    # Training loop
     for v_id, vox in (bar := tqdm(enumerate(model.voxels), total=len(model.voxels))):
         if vox.trained:
             continue
 
         time_start = time.time()
-        vox.is_training()
-        optimizer = utils.create_optimizer_or_freeze_model(vox, cfg.coarse_train, global_step=0)
+        optimizer = setup_voxel_training(vox, cfg)
+        track = get_voxel_track(vox, tracks, map_track)
 
-        track = tracks[map_track[f'{vox.vox_id}']]
-
-        if (track.point_w != vox.point_w).all():
-            print_error(f"Point mismatch: {track.point_w} != {vox.point_w}")
-            vox.trained = False
+        if track is None or not validate_track(vox, track):
             continue
 
-        feature_tr = torch.tensor(np.stack(track.features, axis=0),
-                                  dtype=torch.float32,
-                                  device=device)
-        rays_o_tr, rays_d_tr, imsz = get_training_rays(K=K,
-                                                       train_poses=track.get_poses_tensor(device),
-                                                       pts=track.get_pts_tensor(device),
-                                                       patch_size_half=track.patch_size_half,
-                                                       device=device)
+        feature_tr, rays_o_tr, rays_d_tr, imsz = prepare_training_data(track, K, device)
+        cnt = count_voxel_views(vox, rays_o_tr, rays_d_tr, imsz, cfg)
 
-        try:
-            cnt = vox.voxel_count_views(
-                rays_o_tr=rays_o_tr, rays_d_tr=rays_d_tr, imsz=imsz, near=0.2,
-                stepsize=cfg.coarse_model_and_render.stepsize, downrate=1)
-        except Exception as e:
-            vox.trained = False
+        if cnt is None or not setup_voxel_mask(vox, optimizer, cnt):
             continue
-        # cnt.clamp_(0, 100)
-        optimizer.set_pervoxel_lr(cnt)
-        vox.mask_cache.mask[cnt.squeeze() <= 2] = False
-        psnr = 0
-        for iter in range(2000):
-            sel_b = torch.randint(feature_tr.shape[0], [1024])
-            sel_r = torch.randint(feature_tr.shape[1], [1024])
-            sel_c = torch.randint(feature_tr.shape[2], [1024])
 
-            target = feature_tr[sel_b, sel_r, sel_c]
-            rays_o = rays_o_tr[sel_b, sel_r, sel_c]
-            rays_d = rays_d_tr[sel_b, sel_r, sel_c]
-
-            # volume rendering
-            render_result = vox(rays_o, rays_d)
-
-            optimizer.zero_grad(set_to_none=True)
-
-            loss = F.mse_loss(render_result['desc'], target[..., :channels])
-
-            psnr += utils.mse2psnr(loss.detach() / 4.)  # 4 is (1- (-1))^2 because the desc is in the range [-1, 1]
-
-            pout = render_result['alphainv_last'].clamp(1e-6, 1 - 1e-6)
-            entropy_last_loss = -(pout * torch.log(pout) + (1 - pout) * torch.log(1 - pout)).mean()
-            loss += 0.1 * entropy_last_loss
-
-            if iter > 1:
-                # add sin loss
-                cos_loss = 1. - cos(render_result['desc'], target[..., :channels])
-                loss += 0.2 * cos_loss.mean()
-
-            loss.backward()
-
-            if iter > 1500:
-                if cfg.fine_train.weight_tv_density > 0:
-                    vox.density_total_variation_add_grad(
-                        cfg.fine_train.weight_tv_density / len(rays_o), True)
-                if cfg.fine_train.weight_tv_k0 > 0:
-                    vox.k0_total_variation_add_grad(
-                        cfg.fine_train.weight_tv_k0 / len(rays_o), True)
-
-            decay_steps = cfg.coarse_train.lrate_decay * 1000
-            decay_factor = 0.1 ** (1 / decay_steps)
-            for i_opt_g, param_group in enumerate(optimizer.param_groups):
-                param_group['lr'] = param_group['lr'] * decay_factor
-
-            optimizer.step()
+        # Train the voxel
+        psnr = train_voxel(vox, feature_tr, rays_o_tr, rays_d_tr, channels, optimizer, cfg, cos)
 
         delta_time = time.time() - time_start
+        process_training_result(vox, psnr, delta_time, count_success_voxels, max_voxels, all_psnrs, all_times, track)
 
-        if psnr / (iter + 1) < 1.:  # was 30 before
-            vox.trained = False
-        else:
-            psnr_val = (psnr / (iter + 1)).detach().cpu().numpy()
-            all_psnrs.append(psnr_val)
-            all_times.append(delta_time)
-            vox.psnr = psnr_val
-            vox.trained = True
-            vox.images_seen = track.get_frames_ids()
-            count_success_voxels += 1
-            if count_success_voxels > max_voxels:
-                # print_info(f"Max number of voxels reached: {MAX_VOXELS}")
-                break
-            # # Test
-            if psnr / (iter + 1) > 30.:
-                print(f"Voxel {vox.vox_id} trained in {iter} iterations, psnr: {psnr / (iter + 1)}")
-                for test_rays_o, test_rays_d, feature_test in zip(rays_o_tr, rays_d_tr, feature_tr):
-                    test_rays_o = test_rays_o.unsqueeze(0)
-                    test_rays_d = test_rays_d.unsqueeze(0)
-                    test_visualizer(vox, None, test_rays_o, test_rays_d, None, cfg.coarse_model_and_render.stepsize,
-                                    feature_test,
-                                    cfg.data.patch_size_half)
+        bar.set_description(f"count_success_voxels: {count_success_voxels}, psnr: {np.mean(all_psnrs):.4f}")
 
-        bar.set_description(
-            f"count_success_voxels: {count_success_voxels}, psnr: {np.mean(all_psnrs):.4f}")
+        if count_success_voxels >= max_voxels:
+            break
 
-    # remove voxels that are not trained
+    finalize_training(model, all_psnrs, all_times, cfg)
+
+
+def setup_voxel_training(vox, cfg):
+    """Prepare voxel for training."""
+    vox.is_training()
+    return utils.create_optimizer_or_freeze_model(vox, cfg.coarse_train, global_step=0)
+
+
+def get_voxel_track(vox, tracks, map_track):
+    """Retrieve the track for a given voxel."""
+    track_id = map_track.get(f'{vox.vox_id}')
+    return tracks[track_id] if track_id else None
+
+
+def validate_track(vox, track):
+    """Ensure the voxel and track points match."""
+    if (track.point_w != vox.point_w).all():
+        print_error(f"Point mismatch: {track.point_w} != {vox.point_w}")
+        vox.trained = False
+        return False
+    return True
+
+
+def prepare_training_data(track, K, device):
+    """Prepare features and rays for training."""
+    feature_tr = torch.tensor(np.stack(track.features, axis=0), dtype=torch.float32, device=device)
+    rays_o_tr, rays_d_tr, imsz = get_training_rays(K=K,
+                                                   train_poses=track.get_poses_tensor(device),
+                                                   pts=track.get_pts_tensor(device),
+                                                   patch_size_half=track.patch_size_half,
+                                                   device=device)
+    return feature_tr, rays_o_tr, rays_d_tr, imsz
+
+
+def count_voxel_views(vox, rays_o_tr, rays_d_tr, imsz, cfg):
+    """Compute the number of views for a voxel."""
+    try:
+        return vox.voxel_count_views(rays_o_tr=rays_o_tr, rays_d_tr=rays_d_tr, imsz=imsz, near=0.2,
+                                     stepsize=cfg.coarse_model_and_render.stepsize, downrate=1)
+    except Exception as e:
+        print_error(f"Error in voxel view count: {e}")
+        vox.trained = False
+        return None
+
+
+def setup_voxel_mask(vox, optimizer, cnt):
+    """Configure voxel mask and learning rate."""
+    cnt.clamp_(0, 100)
+    optimizer.set_pervoxel_lr(cnt)
+    vox.mask_cache.mask[cnt.squeeze() <= 2] = False
+    return True
+
+
+def train_voxel(vox, feature_tr, rays_o_tr, rays_d_tr, channels, optimizer, cfg, cos):
+    """Train a single voxel."""
+    psnr = 0
+    for iter in range(2000):
+        loss, render_result = voxel_training_step(vox, feature_tr, rays_o_tr, rays_d_tr, channels, optimizer, cos, iter,
+                                                  cfg)
+        psnr += utils.mse2psnr(loss.detach() / 4.)  # Desc range is [-1, 1]
+        optimizer.step()
+
+        if iter > 1500:
+            apply_total_variation_loss(vox, cfg, len(rays_o_tr))
+
+    return psnr / 2000
+
+
+def voxel_training_step(vox, feature_tr, rays_o_tr, rays_d_tr, channels, optimizer, cos, iter, cfg):
+    """Perform a single training iteration for a voxel."""
+    sel_b = torch.randint(feature_tr.shape[0], [1024])
+    sel_r = torch.randint(feature_tr.shape[1], [1024])
+    sel_c = torch.randint(feature_tr.shape[2], [1024])
+
+    target = feature_tr[sel_b, sel_r, sel_c]
+    rays_o = rays_o_tr[sel_b, sel_r, sel_c]
+    rays_d = rays_d_tr[sel_b, sel_r, sel_c]
+
+    render_result = vox(rays_o, rays_d)
+    optimizer.zero_grad(set_to_none=True)
+
+    loss = compute_loss(render_result, target, channels, cos, iter)
+    loss.backward()
+    return loss, render_result
+
+
+def compute_loss(render_result, target, channels, cos, iter):
+    """Calculate the training loss."""
+    loss = F.mse_loss(render_result['desc'], target[..., :channels])
+
+    pout = render_result['alphainv_last'].clamp(1e-6, 1 - 1e-6)
+    entropy_loss = -(pout * torch.log(pout) + (1 - pout) * torch.log(1 - pout)).mean()
+    loss += 0.1 * entropy_loss
+
+    if iter > 1:
+        cos_loss = 1. - cos(render_result['desc'], target[..., :channels])
+        loss += 0.2 * cos_loss.mean()
+
+    return loss
+
+
+def apply_total_variation_loss(vox, cfg, ray_count):
+    """Apply total variation loss to the voxel."""
+    if cfg.fine_train.weight_tv_density > 0:
+        vox.density_total_variation_add_grad(cfg.fine_train.weight_tv_density / ray_count, True)
+    if cfg.fine_train.weight_tv_k0 > 0:
+        vox.k0_total_variation_add_grad(cfg.fine_train.weight_tv_k0 / ray_count, True)
+
+
+def process_training_result(vox, psnr, delta_time, count_success_voxels, all_psnrs, all_times, track):
+    """Handle the result of voxel training."""
+    if psnr < 20.:
+        vox.trained = False
+    else:
+        vox.trained = True
+        vox.psnr = psnr
+        vox.images_seen = track.get_frames_ids()
+        all_psnrs.append(psnr)
+        all_times.append(delta_time)
+        count_success_voxels += 1
+
+
+def finalize_training(model, all_psnrs, all_times, cfg):
+    """Finalize training, remove untrained voxels, and save the model."""
     model.voxels = nn.ModuleList([vox for vox in model.voxels if vox.trained])
-
-    # some psnr stats
     print_stats("PSNR", np.array(all_psnrs))
     print_stats("Time", np.array(all_times))
-
-    # store the model
     store_model(model, cfg.root_dir, 'model_last')
     print_success("Model trained and stored")
 
@@ -178,7 +231,7 @@ if __name__ == '__main__':
     print_info(f"Total tracks > {cfg.data.min_track_length}: {len(tracks)}")
     print_info(f"Min track length: {min([len(t) for t in tracks])}, max track len: {max([len(t) for t in tracks])}")
 
-    channels = tracks[0].feature_channels()
+    channels = model2channels(cfg.data.net_model)
     print_info(f"\nChannels: {channels}")
 
     # Load model if exists
@@ -216,6 +269,7 @@ if __name__ == '__main__':
     # start timing
     start_time = int(time.time())
 
+    # Call the training function
     train(model, cfg, dataloader.camera.K, device, tracks, map_track, channels)
 
     print_info("Training done")

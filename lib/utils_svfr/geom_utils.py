@@ -10,6 +10,10 @@ from typing import Tuple, List
 
 from scipy.optimize import least_squares
 
+"""
+Collection of geometric utility functions.
+"""
+
 
 def mnn_matcher(desc1: np.ndarray, desc2: np.ndarray, match_thr: float = 0.9) -> np.ndarray:
     """

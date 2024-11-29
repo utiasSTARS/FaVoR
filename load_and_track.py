@@ -50,11 +50,11 @@ if __name__ == '__main__':
             tracker.tracks = sorted(tracker.tracks, key=lambda x: len(x), reverse=True)[:3000]
             tracker.couple_features(dataloader.camera.height, dataloader.camera.width, counter)
 
-        # store the tracks
-        tracker.store_tracks()
-
         # log time
         print_info(f"Tracking took {(time.time() - start_time)} seconds")
+
+        # store the tracks
+        tracker.store_tracks()
 
         # close the log file and reset stdout
         f.close()

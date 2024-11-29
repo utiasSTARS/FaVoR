@@ -1,3 +1,7 @@
+"""
+This file contains the class CambridgeDataloader, which is a subclass of Dataloader.
+"""
+
 import numpy as np
 import cv2
 from os import path
