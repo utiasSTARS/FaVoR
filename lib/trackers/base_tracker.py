@@ -179,120 +179,253 @@ class BaseTracker:
         self._frame_id += 1
 
     def couple_features(self, h, w, count):
-        """Couple the features with the tracks, used for large descriptors sizes
+        """
+        Couple the features with the tracks, used for large descriptor sizes.
+
+        This method processes feature maps and associates them with the tracks.
+        It is particularly useful for handling large descriptor sizes.
 
         Args:
-            h: the height of the image
-            w: the width of the image
-            count: number of the training frames
+            h (int): The height of the image.
+            w (int): The width of the image.
+            count (int): The number of training frames.
+
+        Notes:
+            The method assumes that feature maps are stored as `.npy` files in the "feature_maps" directory.
         """
         print_info("Coupling features with tracks...")
         map_tracks = {}
+
+        # Create a mapping of track IDs to their index in the track list
         for i, t in enumerate(self.tracks):
             map_tracks[t.get_id()] = i
+
+        # Generate frames for the given count
         frames = self.create_frames(list(range(count)))
+
+        # Iterate over each frame
         for frame in tqdm(frames):
-            feature_map = np.load(os.path.join(self.path, "feature_maps", f"feature_map_{frame.get_id()}.npy"))
+            # Load the feature map for the current frame
+            feature_map_path = os.path.join(self.path, "feature_maps", f"feature_map_{frame.get_id()}.npy")
+            feature_map = np.load(feature_map_path)
+
+            # Convert the feature map to a torch tensor and resize it
             feature_map = torch.tensor(feature_map)
             feature_map = torch.nn.functional.interpolate(feature_map[None, ...], (h, w), mode='bilinear')[
                 0].cpu().numpy()
+
+            # Rearrange the dimensions of the feature map
             feature_map = rearrange(feature_map, 'c h w -> h w c')
+
+            # Get the track IDs for the current frame
             t_ids = frame.get_v_ids()
+
+            # Associate features with the tracks
             for t_id in t_ids:
+                # Get the corresponding track from the map
                 track = self.tracks[map_tracks[t_id]]
                 assert track.get_id() == t_id, "Track id mismatch"
+
+                # Get the point corresponding to the track in the current frame
                 pt = track.points[track.frames_id.index(frame.get_id())]
+
+                # Extract the feature patch for the point
                 feat = copy.deepcopy(patch_creator(feature_map, pt, self.patch_size_half, True))
+
+                # Ensure the feature size is correct
                 if feat.shape[0] != 2 * self.patch_size_half + 1 or feat.shape[1] != 2 * self.patch_size_half + 1:
                     raise ValueError(f"Feature map size mismatch: {feat.shape}")
+
+                # Append the feature to the track's feature list
                 track.features.append(deepcopy(feat))
                 del feat
+
+            # Clean up feature map
             del feature_map
 
     def track(self, frame, pose):
-        """ Perform tracking on the frame and store poses and patches into tracks
+        """
+        Perform tracking on the frame and store poses and patches into tracks.
 
-            Args:
-                frame: the frame to track
-                pose: the pose of the frame
-         """
+        This method is intended to be implemented by subclasses to handle
+        specific tracking logic. It should process the frame and pose, then
+        store the tracking information (such as poses and patches) into
+        the tracks.
+
+        Args:
+            frame: The frame to track (usually an image or video frame).
+            pose: The pose of the frame (position and orientation of the camera).
+
+        Raises:
+            NotImplementedError: If the method is not overridden by a subclass.
+        """
         raise NotImplementedError
 
     def store_tracks(self):
-        """Store the tracks in a pickle file"""
+        """
+        Store the tracks in a pickle file.
+
+        This method saves the current tracking information (stored in the
+        `self.tracks` attribute) to a pickle file. The tracks are serialized
+        and saved at the specified path.
+
+        Notes:
+            The file is saved as "tracks.pkl" in the directory specified by `self.path`.
+        """
         store_obj(self.tracks, os.path.join(self.path, "tracks.pkl"))
 
     def store_patches(self):
-        """Store the patches in a folder, used for large descriptors sizes"""
+        """
+        Store the patches in a folder, used for large descriptor sizes.
+
+        This method iterates over all the tracks, and for each track, it stores
+        its associated patches in individual directories. The patches are saved
+        as PNG files in a folder structure where each track has its own subfolder.
+        The patch images are scaled by 255 and saved in the specified path.
+
+        Notes:
+            - The patches are stored in a folder named 'patches' inside the
+              directory specified by `self.path`.
+            - Each track gets its own subfolder, named by the track's ID.
+            - Each patch is stored with the file name format:
+              `{track_id}_{frame_id}.png`, where `track_id` is the ID of the
+              track and `frame_id` is the ID of the frame the patch belongs to.
+        """
+        # Create the 'patches' directory if it does not exist
         patches_path = os.path.join(self.path, "patches")
         os.makedirs(patches_path, exist_ok=True)
+
+        # Iterate over each track and store its patches
         for track in self.tracks:
             patch_path = os.path.join(patches_path, str(track.get_id()))
             os.makedirs(patch_path, exist_ok=True)
+
+            # Iterate over the patches of the track and save them as images
             for i, p in enumerate(track.get_patches()):
-                cv2.imwrite(os.path.join(patch_path, f"{track.get_id()}_{track.frames_id[i]}.png"),
-                            (p * 255.0).astype(np.uint8))
+                patch_filename = os.path.join(patch_path, f"{track.get_id()}_{track.frames_id[i]}.png")
+                cv2.imwrite(patch_filename, (p * 255.0).astype(np.uint8))
 
     def store_images(self, imgs, path):
-        """Store images in a folder"""
-        patches_path = os.path.join(path, "images")
-        os.makedirs(patches_path, exist_ok=True)
-        for track in self.tracks:
-            for i, p in enumerate(track.get_patches()):
-                img = imgs[track.frames_id[i]]
-                cv2.imwrite(os.path.join(patches_path, f"{track.get_id()}_{track.frames_id[i]}.png"),
-                            (img * 255.0).astype(np.uint8))
+        """
+        Store images in a specified folder.
 
-    def get_tracks(self, min_len=1, sort=False) -> [Track]:
-        """Get the tracks that are longer than min_len
+        This method saves images corresponding to each track at the specified
+        folder path. The images are stored in a subfolder named 'images'. For
+        each track, it saves the images at the frames corresponding to the
+        track’s frame IDs.
 
         Args:
-            min_len: the minimum length of the tracks
-            sort: sort the tracks by length
-        Returns:
-            List of tracks
+            imgs: A list of images, where each image corresponds to a frame.
+            path: The directory where the images will be stored.
+
+        Notes:
+            - The images are stored in a folder named 'images' within the
+              provided `path`.
+            - Each image is saved with the file name format:
+              `{track_id}_{frame_id}.png`, where `track_id` is the ID of the
+              track, and `frame_id` is the ID of the frame.
+            - The pixel values of the images are scaled by 255 before being saved
+              to ensure correct image intensity representation.
         """
+        # Create the 'images' directory if it does not exist
+        patches_path = os.path.join(path, "images")
+        os.makedirs(patches_path, exist_ok=True)
+
+        # Iterate over each track and save its corresponding images
+        for track in self.tracks:
+            for i, p in enumerate(track.get_patches()):
+                # Get the image corresponding to the current frame ID
+                img = imgs[track.frames_id[i]]
+
+                # Save the image with the specified filename format
+                img_filename = os.path.join(patches_path, f"{track.get_id()}_{track.frames_id[i]}.png")
+                cv2.imwrite(img_filename, (img * 255.0).astype(np.uint8))
+
+    def get_tracks(self, min_len=1, sort=False) -> [Track]:
+        """
+        Get the tracks that are longer than the specified minimum length.
+
+        This method filters and returns the tracks that have a length greater than
+        or equal to the specified `min_len`. Optionally, the tracks can be sorted
+        by their length in descending order.
+
+        Args:
+            min_len: The minimum length of tracks to be returned. Tracks shorter
+                     than this length will be excluded.
+            sort: If True, the returned tracks will be sorted by length in
+                  descending order.
+
+        Returns:
+            List of Track objects that meet the length criteria.
+
+        Raises:
+            ValueError: If no tracks are found after filtering.
+
+        Notes:
+            - If `min_len` is smaller than the minimum track length set in the
+              object (`self.min_track_length`), a warning is displayed, and
+              `min_len` is adjusted accordingly.
+            - Tracks shorter than `min_len` are removed before returning the list.
+        """
+        # Ensure min_len is not smaller than the minimum track length
         if min_len < self.min_track_length:
             print_warning(f"min_len is smaller than min_track_length, setting min_len to {self.min_track_length}")
             min_len = self.min_track_length
 
+        # Remove tracks that are shorter than the specified min_len
         if min_len > 0:
             self.remove_short_tracks(min_len)
 
+        # Raise an error if no tracks remain after filtering
         if len(self.tracks) == 0:
             raise ValueError("No tracks found")
 
+        # Return the tracks, optionally sorted by length
         if sort:
             return sorted(self.tracks, key=lambda x: len(x), reverse=True)
 
         return self.tracks
 
     def visualize_tracks(self, imgs, min_len=1):
-        """Visualize the tracked patches on the images
+        """
+        Visualize the tracked patches on the images.
+
+        This method iterates through the tracks and visualizes them by drawing
+        lines connecting consecutive points in each track. The tracks are displayed
+        on the image corresponding to the last frame of each track.
 
         Args:
-            imgs: the images
-            min_len: the minimum length of the tracks
+            imgs: List of images where tracks will be visualized.
+            min_len: The minimum length of the tracks to be visualized. Tracks shorter
+                     than this length will be excluded.
         """
+        # Ensure min_len is not smaller than the minimum track length
         if min_len < self.min_track_length:
             print_warning(f"min_len is smaller than min_track_length, setting min_len to {self.min_track_length}")
             min_len = self.min_track_length
 
+        # Visualize tracks
         for track in self.get_tracks(min_len):
+            # Get the last frame's image and convert it to an 8-bit format for display
             last_frame_id = track.get_last_frame_id()
             img_c = utils.to8b(imgs[last_frame_id].detach().cpu().numpy().copy())
             img_c = cv2.cvtColor(img_c, cv2.COLOR_RGB2BGR)
 
-            # draw tracks as lines
+            # Draw tracks as lines between consecutive points
             for i in range(len(track) - 1):
                 point = track.points[i]
                 point_next = track.points[i + 1]
                 cv2.line(img_c, (int(point[0]), int(point[1])),
                          (int(point_next[0]), int(point_next[1])), (0, 0, 255), 2)
+
+            # Mark the last point of the track with a circle
             img_c = cv2.circle(img_c, (int(track.points[-1][0]), int(track.points[-1][1])), 3, (255, 0, 255), -1)
 
+            # Show the image with visualized tracks
             cv2.imshow('tracks', img_c)
-            cv2.waitKey(0)
+            cv2.waitKey(0)  # Wait for a key press to continue
+
+        # Close all OpenCV windows after visualization
         cv2.destroyAllWindows()
 
     def visualize_frames(self, frames, imgs):

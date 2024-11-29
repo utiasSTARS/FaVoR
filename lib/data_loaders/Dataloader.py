@@ -32,6 +32,9 @@ class Dataloader:
 
         Returns:
             None
+
+        Raises:
+            NotImplementedError: If the method is not overridden by a subclass.
         """
         raise NotImplementedError
 
@@ -75,5 +78,8 @@ class Dataloader:
             tuple: A tuple containing:
                 - image (ndarray): The processed image.
                 - transformation_matrix (ndarray): The corresponding transformation matrix.
+
+        Raises:
+            NotImplementedError: If the method is not overridden by a subclass.
         """
         raise NotImplementedError

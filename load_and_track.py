@@ -100,7 +100,8 @@ if __name__ == '__main__':
         landmarks = []
         camera_poses_list = []
         for track in tracker.tracks:
-            landmarks.append(track.get_w_point())
+            if len(track) > 10:
+                landmarks.append(track.get_w_point())
             for pose in track.poses:
                 camera_poses_list.append(CV2O3D(pose))
 
