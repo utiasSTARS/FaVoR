@@ -67,9 +67,9 @@ def train(model: SVFRmodel, cfg: mmengine.Config, K: np.ndarray, device: torch.d
         psnr = train_voxel(vox, feature_tr, rays_o_tr, rays_d_tr, channels, optimizer, cfg, cos)
 
         delta_time = time.time() - time_start
-        process_training_result(vox, psnr, delta_time, count_success_voxels, max_voxels, all_psnrs, all_times, track)
+        count_success_voxels += process_training_result(vox, psnr, delta_time, all_psnrs, all_times, track)
 
-        bar.set_description(f"count_success_voxels: {count_success_voxels}, psnr: {np.mean(all_psnrs):.4f}")
+        bar.set_description(f"count voxels: {count_success_voxels}, psnr: {np.mean(all_psnrs):.4f}")
 
         if count_success_voxels >= max_voxels:
             break
@@ -134,11 +134,12 @@ def train_voxel(vox, feature_tr, rays_o_tr, rays_d_tr, channels, optimizer, cfg,
     for iter in range(2000):
         loss, render_result = voxel_training_step(vox, feature_tr, rays_o_tr, rays_d_tr, channels, optimizer, cos, iter,
                                                   cfg)
-        psnr += utils.mse2psnr(loss.detach() / 4.)  # Desc range is [-1, 1]
-        optimizer.step()
+        psnr += utils.mse2psnr(loss.detach() / 4.).cpu().numpy()  # Desc range is [-1, 1]
 
         if iter > 1500:
             apply_total_variation_loss(vox, cfg, len(rays_o_tr))
+
+        optimizer.step()
 
     return psnr / 2000
 
@@ -184,7 +185,7 @@ def apply_total_variation_loss(vox, cfg, ray_count):
         vox.k0_total_variation_add_grad(cfg.fine_train.weight_tv_k0 / ray_count, True)
 
 
-def process_training_result(vox, psnr, delta_time, count_success_voxels, all_psnrs, all_times, track):
+def process_training_result(vox, psnr, delta_time, all_psnrs, all_times, track):
     """Handle the result of voxel training."""
     if psnr < 20.:
         vox.trained = False
@@ -194,7 +195,8 @@ def process_training_result(vox, psnr, delta_time, count_success_voxels, all_psn
         vox.images_seen = track.get_frames_ids()
         all_psnrs.append(psnr)
         all_times.append(delta_time)
-        count_success_voxels += 1
+        return 1
+    return 0
 
 
 def finalize_training(model, all_psnrs, all_times, cfg):
