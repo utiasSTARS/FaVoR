@@ -15,11 +15,11 @@ from einops import rearrange
 from tqdm import tqdm
 
 from lib import utils
-from lib.utils_svfr.frame import Frame
-from lib.utils_svfr.track import Track
-from lib.utils_svfr.log_utils import print_warning, print_info
-from lib.utils_svfr.geom_utils import patch_creator, triangulate_point
-from lib.utils_svfr.file_utils import load_obj, store_obj
+from lib.utils_favor.frame import Frame
+from lib.utils_favor.track import Track
+from lib.utils_favor.log_utils import print_warning, print_info
+from lib.utils_favor.geom_utils import patch_creator, triangulate_point
+from lib.utils_favor.file_utils import load_obj, store_obj
 
 
 class BaseTracker:
@@ -63,7 +63,7 @@ class BaseTracker:
         self.prev_pts = []  # Previous points
         self.prev_frame = []  # Previous frame data
         self.prev_desc = []  # Previous descriptors
-        self.tracks = load_obj(os.path.join(self.path, "tracks.pkl"), "Tracks ")  # Load tracks
+        self.tracks = load_obj(os.path.join(self.path, "tracks.pkl"), Track, "Tracks ")  # Load tracks
         self.tracks_ids = []  # IDs of tracks
         self._frame_id = 0  # Frame counter
         # self._active_track_ids = []  # (Optional) Active track IDs, currently unused

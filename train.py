@@ -1,23 +1,15 @@
-import atexit
 import sys
-import time
 
 import mmengine
 from torch import nn
-from torch.nn import CosineSimilarity
-from tqdm import tqdm
-import numpy as np
-
-import torch
-import torch.nn.functional as F
 
 from lib import utils
-from lib.models import SVFRmodel
+from lib.models import FaVoRmodel
 
-from lib.utils_svfr.svfr_utils import get_training_rays, create_voxels_args, load_model, resume_model, \
+from lib.utils_favor.svfr_utils import get_training_rays, create_voxels_args, load_model, resume_model, \
     create_new_model, store_model, seed_env, init_device, parse_args, create_dataloader, create_tracker, redirect2log, \
     print_stats, model2channels
-from lib.utils_svfr.log_utils import print_error, print_info, print_success
+from lib.utils_favor.log_utils import print_error, print_info, print_success
 
 import time
 import torch
@@ -28,9 +20,9 @@ import numpy as np
 import atexit
 
 
-def train(model: SVFRmodel, cfg: mmengine.Config, K: np.ndarray, device: torch.device, tracks, map_track,
+def train(model: FaVoRmodel, cfg: mmengine.Config, K: np.ndarray, device: torch.device, tracks, map_track,
           channels: int):
-    """Train the SVFR model on voxel features."""
+    """Train the FaVoR model on voxel features."""
     # Setup parameters
     max_points = 1500 if cfg.data.dataset_type.lower() == '7scenes' else 10000
     max_voxels = min(max_points, len(tracks))
@@ -48,6 +40,7 @@ def train(model: SVFRmodel, cfg: mmengine.Config, K: np.ndarray, device: torch.d
     # Training loop
     for v_id, vox in (bar := tqdm(enumerate(model.voxels), total=len(model.voxels))):
         if vox.trained:
+            all_psnrs.append(vox.psnr)
             continue
 
         time_start = time.time()
@@ -69,7 +62,7 @@ def train(model: SVFRmodel, cfg: mmengine.Config, K: np.ndarray, device: torch.d
         delta_time = time.time() - time_start
         count_success_voxels += process_training_result(vox, psnr, delta_time, all_psnrs, all_times, track)
 
-        bar.set_description(f"count voxels: {count_success_voxels}, psnr: {np.mean(all_psnrs):.4f}")
+        bar.set_description(f"Count voxels: {count_success_voxels}, PSNR: {np.mean(all_psnrs):.4f}")
 
         if count_success_voxels >= max_voxels:
             break
@@ -224,6 +217,7 @@ if __name__ == '__main__':
     tracker = create_tracker(net_model=cfg.net_model, K=dataloader.camera.K, patch_size_half=cfg.data.patch_size_half,
                              path=cfg.root_dir, distortion=dataloader.camera.distortion, log=False)
 
+    # check if the tracker is empty
     if tracker.empty():
         raise Exception("Tracker is empty, run the tracker first")
 
@@ -236,8 +230,10 @@ if __name__ == '__main__':
     channels = model2channels(cfg.data.net_model)
     print_info(f"\nChannels: {channels}")
 
+    ######################################################
+
     # Load model if exists
-    model = load_model(cfg.root_dir, SVFRmodel)
+    model = load_model(cfg.root_dir, FaVoRmodel)
 
     # train
     if not (model is None):
@@ -247,7 +243,7 @@ if __name__ == '__main__':
     # create a log file and redirect stdout there
     f, original_stdout = redirect2log(cfg.root_dir)
 
-    model = resume_model(cfg.root_dir, SVFRmodel)
+    model = resume_model(cfg.root_dir)
     if model is None:
         print_info("Model not loaded, creating a new one...")
         voxels_args = create_voxels_args(cfg_model=cfg.coarse_model_and_render,
@@ -257,7 +253,6 @@ if __name__ == '__main__':
                                          tracks=tracks)
 
         model = create_new_model(cfg_model=cfg.coarse_model_and_render,
-                                 model_class=SVFRmodel,
                                  voxels_args=voxels_args,
                                  channels=channels,
                                  device=device)

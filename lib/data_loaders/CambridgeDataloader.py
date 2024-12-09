@@ -6,20 +6,26 @@ import numpy as np
 import cv2
 from os import path
 from scipy.spatial.transform._rotation import Rotation
-from typing import Tuple
+from typing import Tuple, Union
 
 from lib.camera_models.camera import Camera
-from lib.utils_svfr.log_utils import print_info
+from lib.utils_favor.log_utils import print_info
 from lib.data_loaders.Dataloader import Dataloader
 
 
 class CambridgeDataloader(Dataloader):
+    scene2number = {'KingsCollege': 0, 'GreatCourt': 1, 'OldHospital': 2, 'ShopFacade': 3, 'StMarysChurch': 4}
 
     def __init__(self, data_path, scene):
         if not (scene in ['GreatCourt', 'KingsCollege', 'OldHospital', 'ShopFacade', 'StMarysChurch', 'Street']):
             raise Exception(
                 "Scene must be one among: 'GreatCourt', 'KingsCollege', 'OldHospital', 'ShopFacade', 'StMarysChurch', 'Street'")
         super().__init__(data_path, scene)
+
+        self.net_vlad_path = path.join("./datasets", 'densevlad', 'Cambridge',
+                                       f'pairs-query-netvlad10.txt' if self.scene2number[scene] == 0 else
+                                       f'pairs-query-netvlad10.txt.{self.scene2number[scene]}')
+        self.load_vlad()
 
     def load_data(self) -> None:
         # Create the camera
@@ -44,7 +50,7 @@ class CambridgeDataloader(Dataloader):
         self.camera = Camera(W, H, focal, focal, cx, cy)
 
         # load ground truth data lines:
-        ground_truth_train_path = path.join(self.scene_folder, 'dataset_test.txt')
+        ground_truth_train_path = path.join(self.scene_folder, 'dataset_train.txt')
         print_info(f"Loading training data from {ground_truth_train_path}")
 
         with open(ground_truth_train_path, 'r') as file:
@@ -55,7 +61,19 @@ class CambridgeDataloader(Dataloader):
         # order lines strings
         self.gt_lines = sorted(self.gt_lines)
 
-    def line2data(self, line) -> Tuple[np.ndarray, np.ndarray]:
+        # load ground truth data lines:
+        ground_truth_train_path = path.join(self.scene_folder, 'dataset_test.txt')
+        print_info(f"Loading training data from {ground_truth_train_path}")
+
+        with open(ground_truth_train_path, 'r') as file:
+            self.test_lines = file.readlines()
+            self.test_lines = self.test_lines[3:]
+            file.close()
+
+        # order lines strings
+        self.test_lines = sorted(self.test_lines)
+
+    def imgpath_and_pose(self, line: str) -> Tuple[str, np.ndarray]:
         img_path, x, y, z, qw, qx, qy, qz = line.split()
 
         R = Rotation.from_quat([float(qx), float(qy), float(qz), float(qw)]).as_matrix()
@@ -66,6 +84,13 @@ class CambridgeDataloader(Dataloader):
 
         # NOTE: in the original Cambridge dataser the pose represetnation is different from COLMAP http://ccwu.me/vsfm/doc.html#nvm
         cam_pose = np.linalg.inv(cam_pose)
+        return img_path, cam_pose
+
+    def line2data(self, line: str, test: bool = False) -> Union[
+        Tuple[np.ndarray, np.ndarray],
+        Tuple[np.ndarray, np.ndarray, np.ndarray]
+    ]:
+        img_path, cam_pose = self.imgpath_and_pose(line)
 
         # store img
         img = cv2.imread(path.join(self.scene_folder, img_path))
@@ -74,5 +99,9 @@ class CambridgeDataloader(Dataloader):
             raise Exception(f"Image {img_path} does not exist")
 
         img = cv2.resize(img, (self.camera.width, self.camera.height))
+
+        if test:
+            prior_train_pose = self.net_vlad_poses[img_path]
+            return img, cam_pose, prior_train_pose
 
         return img, cam_pose

@@ -4,10 +4,10 @@ import time
 import cv2
 import numpy as np
 
-from lib.utils_svfr.log_utils import print_info, print_success
-from lib.utils_svfr.transform_utils import CV2O3D
-from lib.utils_svfr.visualizer_utils import visualize_camera_poses_and_points
-from lib.utils_svfr.svfr_utils import seed_env, init_device, parse_args, create_dataloader, create_tracker, \
+from lib.utils_favor.log_utils import print_info, print_success
+from lib.utils_favor.transform_utils import CV2O3D
+from lib.utils_favor.visualizer_utils import visualize_camera_poses_and_points
+from lib.utils_favor.svfr_utils import seed_env, init_device, parse_args, create_dataloader, create_tracker, \
     redirect2log
 
 if __name__ == '__main__':
