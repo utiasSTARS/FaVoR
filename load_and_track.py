@@ -7,7 +7,7 @@ import numpy as np
 from lib.utils_favor.log_utils import print_info, print_success
 from lib.utils_favor.transform_utils import CV2O3D
 from lib.utils_favor.visualizer_utils import visualize_camera_poses_and_points
-from lib.utils_favor.svfr_utils import seed_env, init_device, parse_args, create_dataloader, create_tracker, \
+from lib.utils_favor.misc_utils import seed_env, init_device, parse_args, create_dataloader, create_tracker, \
     redirect2log
 
 if __name__ == '__main__':
@@ -31,7 +31,7 @@ if __name__ == '__main__':
         start_time = int(time.time())
 
         # create a log file and redirect stdout there
-        f, original_stdout = redirect2log(cfg.root_dir)
+        f, original_stdout = redirect2log(cfg.root_dir, "track")
 
         print_info(f"Tracking {cfg.data.scene} scene")
 
@@ -71,7 +71,7 @@ if __name__ == '__main__':
         landmarks = np.array(landmarks)
 
         print_info(f"Visualizing tracked points on {cfg.data.scene} scene test images")
-        for img, cam_pose in dataloader.get_test():
+        for img, cam_pose, _ in dataloader.get_test():
             cam_pose = np.linalg.inv(cam_pose)
 
             # project the landmarks to the image

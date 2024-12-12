@@ -11,7 +11,16 @@ This module provides a base class for data loaders.
 
 
 class Dataloader:
-    """ Base class for data loaders. """
+    """ Base class for data loaders.
+
+    Attributes:
+        data_path (str): The path to the directory containing the data.
+        scene (str): The name of the scene to load data for.
+        scene_folder (str): The path to the scene folder.
+        gt_lines (list): A list of ground truth data lines.
+        test_lines (list): A list of test data lines.
+        camera (Camera): The camera object.
+    """
 
     def __init__(self, data_path, scene):
         """

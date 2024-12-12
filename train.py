@@ -3,12 +3,11 @@ import sys
 import mmengine
 from torch import nn
 
-from lib import utils
 from lib.models import FaVoRmodel
 
-from lib.utils_favor.svfr_utils import get_training_rays, create_voxels_args, load_model, resume_model, \
+from lib.utils_favor.misc_utils import get_training_rays, create_voxels_args, load_model, resume_model, \
     create_new_model, store_model, seed_env, init_device, parse_args, create_dataloader, create_tracker, redirect2log, \
-    print_stats, model2channels
+    print_stats, model2channels, create_optimizer_or_freeze_model
 from lib.utils_favor.log_utils import print_error, print_info, print_success
 
 import time
@@ -18,6 +17,8 @@ from tqdm import tqdm
 from torch.nn import CosineSimilarity
 import numpy as np
 import atexit
+
+from lib.utils_favor.visualizer_utils import mse2psnr
 
 
 def train(model: FaVoRmodel, cfg: mmengine.Config, K: np.ndarray, device: torch.device, tracks, map_track,
@@ -41,11 +42,17 @@ def train(model: FaVoRmodel, cfg: mmengine.Config, K: np.ndarray, device: torch.
     for v_id, vox in (bar := tqdm(enumerate(model.voxels), total=len(model.voxels))):
         if vox.trained:
             all_psnrs.append(vox.psnr)
+            count_success_voxels += 1
             continue
 
         time_start = time.time()
-        optimizer = setup_voxel_training(vox, cfg)
-        track = get_voxel_track(vox, tracks, map_track)
+
+        vox.is_training()
+        optimizer = create_optimizer_or_freeze_model(vox, cfg.coarse_train, global_step=0)
+
+        # Retrieve the track for a given voxel
+        track_id = map_track.get(f'{vox.vox_id}')
+        track = tracks[track_id] if track_id else None
 
         if track is None or not validate_track(vox, track):
             continue
@@ -68,18 +75,6 @@ def train(model: FaVoRmodel, cfg: mmengine.Config, K: np.ndarray, device: torch.
             break
 
     finalize_training(model, all_psnrs, all_times, cfg)
-
-
-def setup_voxel_training(vox, cfg):
-    """Prepare voxel for training."""
-    vox.is_training()
-    return utils.create_optimizer_or_freeze_model(vox, cfg.coarse_train, global_step=0)
-
-
-def get_voxel_track(vox, tracks, map_track):
-    """Retrieve the track for a given voxel."""
-    track_id = map_track.get(f'{vox.vox_id}')
-    return tracks[track_id] if track_id else None
 
 
 def validate_track(vox, track):
@@ -127,7 +122,7 @@ def train_voxel(vox, feature_tr, rays_o_tr, rays_d_tr, channels, optimizer, cfg,
     for iter in range(2000):
         loss, render_result = voxel_training_step(vox, feature_tr, rays_o_tr, rays_d_tr, channels, optimizer, cos, iter,
                                                   cfg)
-        psnr += utils.mse2psnr(loss.detach() / 4.).cpu().numpy()  # Desc range is [-1, 1]
+        psnr += mse2psnr(loss.detach() / 4.).cpu().numpy()  # Desc range is [-1, 1]
 
         if iter > 1500:
             apply_total_variation_loss(vox, cfg, len(rays_o_tr))
@@ -241,7 +236,7 @@ if __name__ == '__main__':
         exit(0)
 
     # create a log file and redirect stdout there
-    f, original_stdout = redirect2log(cfg.root_dir)
+    f, original_stdout = redirect2log(cfg.root_dir, "train")
 
     model = resume_model(cfg.root_dir)
     if model is None:

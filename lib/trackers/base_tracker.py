@@ -14,12 +14,20 @@ import torch
 from einops import rearrange
 from tqdm import tqdm
 
-from lib import utils
-from lib.utils_favor.frame import Frame
-from lib.utils_favor.track import Track
+from lib.trackers.frame import Frame
+from lib.trackers.track import Track
 from lib.utils_favor.log_utils import print_warning, print_info
 from lib.utils_favor.geom_utils import patch_creator, triangulate_point
 from lib.utils_favor.file_utils import load_obj, store_obj
+from lib.utils_favor.visualizer_utils import to8b
+
+"""
+BaseTracker class for feature tracking and storing.
+===============================================================================
+This class is designed to handle the tracking of features across frames,
+manage track data, and apply specific configurations like patch size and
+distortion correction. Tracks are loaded from and saved to a specified path.
+"""
 
 
 class BaseTracker:
@@ -408,7 +416,7 @@ class BaseTracker:
         for track in self.get_tracks(min_len):
             # Get the last frame's image and convert it to an 8-bit format for display
             last_frame_id = track.get_last_frame_id()
-            img_c = utils.to8b(imgs[last_frame_id].detach().cpu().numpy().copy())
+            img_c = to8b(imgs[last_frame_id].detach().cpu().numpy().copy())
             img_c = cv2.cvtColor(img_c, cv2.COLOR_RGB2BGR)
 
             # Draw tracks as lines between consecutive points
@@ -436,7 +444,7 @@ class BaseTracker:
             imgs: the images
         """
         for frame in frames:
-            img = utils.to8b(imgs[frame.get_id()].detach().cpu().numpy().copy())
+            img = to8b(imgs[frame.get_id()].detach().cpu().numpy().copy())
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             # create a mask for cropping the image in the patches
             mask = np.zeros_like(img)
@@ -466,7 +474,7 @@ class BaseTracker:
                 p_x - patch_size_half:p_x + patch_size_half + 1] = patch
 
             if imgs is not None:
-                img = utils.to8b(imgs[frame.get_id()].detach().cpu().numpy().copy())
+                img = to8b(imgs[frame.get_id()].detach().cpu().numpy().copy())
                 img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR) / 255.0
                 img -= mask
                 # normalize
@@ -654,7 +662,7 @@ class BaseTracker:
         sim = np.where(sim)
         for i, j in zip(sim[0], sim[1]):
             if not (self.tracks[i].is_dead() or self.tracks[j].is_dead()):
-                self.tracks[i].enhance_track(self.tracks[j])
+                self.tracks[i].enhance(self.tracks[j])
                 self.tracks[j].kill()
 
         # remove the dead tracks

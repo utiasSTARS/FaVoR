@@ -7,6 +7,7 @@
 import copy
 import gc
 import os.path
+from typing import Tuple
 
 import cv2
 import numpy as np
@@ -262,7 +263,7 @@ class SuperPointTracker(BaseTracker):
                     cv2.LINE_AA)
         return img_match, len(kpts_match), percentage_match, len(kpts)
 
-    def match_kps(self, desc, img2, match_thr):
+    def match_kps(self, desc, img2, match_thr) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Match keypoints between descriptors and an image.
 
@@ -272,7 +273,7 @@ class SuperPointTracker(BaseTracker):
             match_thr: Matching threshold.
 
         Returns:
-            tuple: Target keypoints match, matched indices.
+            tuple: Target keypoints match, matched indices, scores.
         """
         if isinstance(img2, np.ndarray):
             img2 = torch.tensor(img2, dtype=torch.float32)
@@ -283,8 +284,8 @@ class SuperPointTracker(BaseTracker):
         kpts2 = res2['keypoints']
         desc2 = res2['descriptors']
 
-        matches_all = mnn_matcher(desc, desc2, match_thr)
+        matches_all, scores = mnn_matcher(desc, desc2, match_thr)
 
         target_kpts_match = kpts2[matches_all[:, 1]]
 
-        return target_kpts_match, matches_all[:, 0]
+        return target_kpts_match, matches_all[:, 0], scores

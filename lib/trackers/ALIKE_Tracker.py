@@ -3,6 +3,7 @@
 #  Institute for Aerospace Studies).
 #  This file is subject to the terms and conditions defined in the file
 #  'LICENSE', which is part of this source code package.
+from typing import Tuple
 
 import cv2
 import numpy as np
@@ -34,6 +35,22 @@ class AlikeTracker(BaseTracker):
                  min_track_length: int = 5,
                  distortion=None,
                  lkt=False):
+        """
+        Initialize the AlikeTracker.
+
+        Args:
+            K (np.ndarray): Camera intrinsic matrix.
+            patch_size_half (int): Half size of the patch.
+            max_points (int): Maximum number of points.
+            scores_th (float): Score threshold.
+            top_k (int): Top K keypoints to consider.
+            model (str): Model name.
+            path (str): Path to save logs.
+            log (bool): Whether to log the process.
+            min_track_length (int): Minimum track length.
+            distortion: Distortion parameters.
+            lkt (bool): Whether to use Lucas-Kanade tracker.
+        """
         super().__init__(path, patch_size_half, min_track_length, distortion)
         self.active_tracks = []
         self.log = log
@@ -50,6 +67,16 @@ class AlikeTracker(BaseTracker):
                               criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
 
     def track(self, frame, pose):
+        """
+        Track keypoints in the given frame.
+
+        Args:
+            frame: The current frame.
+            pose: The current pose.
+
+        Returns:
+            None
+        """
         self.clean_tracks(min_len=self.min_track_length)
 
         if isinstance(frame, torch.Tensor):
@@ -78,8 +105,20 @@ class AlikeTracker(BaseTracker):
         # store the score and feature maps
         feature_map = res['feature_map']
 
-        # track the points
         def _track(kpts, desc, img_rgb, pose, feature_map):
+            """
+            Internal function to track keypoints.
+
+            Args:
+                kpts: Keypoints.
+                desc: Descriptors.
+                img_rgb: RGB image.
+                pose: Current pose.
+                feature_map: Feature map.
+
+            Returns:
+                None
+            """
             if len(self.prev_pts) == 0:
                 self.prev_pts = kpts
                 self.prev_frame = img_rgb
@@ -110,7 +149,7 @@ class AlikeTracker(BaseTracker):
 
                 # ensure the points are inside the image
                 mask_border = (kpts_match[:, 0] > 10) & (kpts_match[:, 0] < img_rgb.shape[1] - 10) & (
-                            kpts_match[:, 1] > 10) & (
+                        kpts_match[:, 1] > 10) & (
                                       kpts_match[:, 1] < img_rgb.shape[0] - 10)
                 kpts_match = kpts_match[mask_border]
                 prev_pts_match = prev_pts_match[mask_border]
@@ -118,37 +157,25 @@ class AlikeTracker(BaseTracker):
                 # filter the matches
                 kpts_match, prev_pts_match, mask, _ = geometric_check(self.K, kpts_match, prev_pts_match, repr_error=2.)
 
-                # check if the point is out:
-                # for pt in kpts_match:
-                #     if np.sum(img_rgb[int(pt[1]) - self.patch_size_half:int(pt[1]) + self.patch_size_half + 1,
-                #               int(pt[0]) - self.patch_size_half:int(pt[0]) + self.patch_size_half + 1, :]) == 0:
-                #         raise ValueError("Point is out of the colored image")
-
-                # iterate over matches
                 for mtc_id, (prev_pt, curr_pt) in enumerate(zip(prev_pts_match, kpts_match)):
                     target = copy.deepcopy(patch_creator(feature_map, curr_pt, self.patch_size_half))
                     patch = copy.deepcopy(patch_creator(img_rgb, curr_pt, self.patch_size_half, hwc=True))
                     added = False
                     for track_i in range(len(self.tracks)):
                         if self.tracks[track_i].get_last_frame_id() < self._frame_id - 1:
-                            # no need to continue, the tracks are ordered
                             break
 
-                        # if self.tracks[track_i].check(prev_pt):
                         if self.tracks[track_i].append(curr_pt, pose, target, patch, self._frame_id, prev_pt):
                             added = True
                             break
 
-                    # if not added, init a new track
                     if not added:
                         new_track = Track(patch_size_half=self.patch_size_half, distortion=self.distortion)
                         new_track.append(curr_pt, pose, target, patch, self._frame_id)
                         self.tracks.append(new_track)
 
-                # add the rest of the not matched points as new tracks:
                 if not self.lkt:
                     for i in range(len(kpts)):
-                        # not in matches_all is less than not in matches
                         if i not in matches_all[:, 0]:
                             target = copy.deepcopy(patch_creator(feature_map, kpts[i], self.patch_size_half))
                             patch = copy.deepcopy(patch_creator(img_rgb, kpts[i], self.patch_size_half, hwc=True))
@@ -160,19 +187,15 @@ class AlikeTracker(BaseTracker):
                 if self.log:
                     cv2.imshow("Matches", draw_kpts(img_rgb, prev_pts_match, kpts_match))
                     cv2.waitKey(1)
-                    # visualize_images([self.prev_frame, img_rgb, draw_kpts(img_rgb, prev_pts_match, kpts_match)], 1, 3)
 
-                # update the frame
                 self.prev_frame = img_gray if self.lkt else img_rgb
                 self.prev_pts = kpts_match.copy() if self.lkt else kpts.copy()
                 self.prev_desc = desc.copy()
                 if self.lkt:
                     if len(self.prev_pts) != 0 and len(self.prev_pts) < 200:
-                        # check if pts are the same as the matched pts
                         c = 0
                         for p in kpts:
                             if np.linalg.norm(self.prev_pts - p, axis=1).min() > 5:
-                                # add the new points
                                 new_track = Track(patch_size_half=self.patch_size_half, distortion=self.distortion)
                                 target = copy.deepcopy(patch_creator(feature_map, p, self.patch_size_half))
                                 patch = copy.deepcopy(patch_creator(img_rgb, p, self.patch_size_half, hwc=True))
@@ -188,7 +211,6 @@ class AlikeTracker(BaseTracker):
         if self.lkt:
             if len(self.tracks) > 3000:
                 self.tracks = sorted(self.tracks, key=lambda x: x.get_last_frame_id(), reverse=True)
-                # get the previous last frame id
                 last_frame_id = self.tracks[0].get_last_frame_id()
                 for i in range(len(self.tracks)):
                     if self.tracks[i].get_last_frame_id() != last_frame_id:
@@ -196,11 +218,20 @@ class AlikeTracker(BaseTracker):
                         self.tracks = self.tracks[:3000]
                         break
 
-        # order tracks for last frame_id
         self.tracks = sorted(self.tracks, key=lambda x: x.get_last_frame_id(), reverse=True)
         gc.collect()
 
     def match(self, img1_, img2_):
+        """
+        Match keypoints between two images.
+
+        Args:
+            img1_: First image.
+            img2_: Second image.
+
+        Returns:
+            tuple: Matched image, number of matches, percentage of matches, number of keypoints.
+        """
         img1 = cv2.cvtColor(to8b(img1_.detach().cpu().numpy()), cv2.COLOR_BGR2RGB)
         res = self.net.run(img1)
         kpts = res['keypoints']
@@ -213,16 +244,12 @@ class AlikeTracker(BaseTracker):
 
         matches_all = mnn_matcher(desc, desc2)
 
-        # update the points
         kpts_match = kpts[matches_all[:, 0]]
         prev_pts_match = kpts2[matches_all[:, 1]]
 
-        # filter the matches
         kpts_match, prev_pts_match, mask, _ = geometric_check(self.K, kpts_match, prev_pts_match, repr_error=5.)
 
-        # visualize the matches
         img_match = draw_kpts(img1, prev_pts_match, kpts_match)
-        # write n of matches
         percentage_match = 100. * len(kpts_match) / len(kpts)
         cv2.putText(img_match, f"Matches: {percentage_match:.2f} %", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0),
                     2,
@@ -230,46 +257,80 @@ class AlikeTracker(BaseTracker):
         return img_match, len(kpts_match), percentage_match, len(kpts)
 
     def features_extractor(self, frame):
+        """
+        Extract features from the given frame.
+
+        Args:
+            frame: The input frame.
+
+        Returns:
+            tuple: Keypoints, descriptors, feature map, score map.
+        """
         if isinstance(frame, torch.Tensor):
             frame = frame.detach().cpu().numpy()
 
-        # check if it is 8b
         if frame.dtype != np.uint8:
             frame = to8b(frame)
 
-        # the images are read using opencv, which is BGR
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         res = self.net(frame)
         kpts = res['keypoints']
         desc = res['descriptors']
 
-        # store the score and feature maps
         score_map = rearrange(res['scores_map'], 'c h w -> h w c')
         feature_map = rearrange(res['feature_map'], 'c h w -> h w c')
 
         return kpts, desc, feature_map, score_map
 
     def descriptor_extractor(self, feature_map, kps):
-        # extract descriptors
+        """
+        Extract descriptors from the feature map and keypoints.
+
+        Args:
+            feature_map: The feature map.
+            kps: Keypoints.
+
+        Returns:
+            tuple: Descriptors, keypoints.
+        """
         with torch.no_grad():
             descriptors, offsets = self.net.desc_head(feature_map, kps)
             return descriptors, kps
 
     def keypoints_extractor(self, img, kps):
-        # extract descriptors
+        """
+        Extract keypoints from the image.
+
+        Args:
+            img: The input image.
+            kps: Keypoints.
+
+        Returns:
+            tuple: Descriptors, keypoints.
+        """
         feature_map, score_map = self.net.extract_dense_map(img)
         descriptors, offsets = self.net.desc_head(feature_map, kps)
         return descriptors, kps
 
-    def match_kps(self, desc, img2, match_thr):
+    def match_kps(self, desc, img2, match_thr) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Match keypoints between descriptors and an image.
+
+        Args:
+            desc: Descriptors.
+            img2: The second image.
+            match_thr: Matching threshold.
+
+        Returns:
+            tuple: Matched keypoints, indices of the matched keypoints, scores.
+        """
         res2 = self.net(img2)
         kpts2 = res2['keypoints']
         desc2 = res2['descriptors']
 
-        matches_all = mnn_matcher(desc, desc2, match_thr)
+        matches_all, scores = mnn_matcher(desc, desc2, match_thr)
 
-        # update the points
         target_kpts_match = kpts2[matches_all[:, 1]]
 
-        return target_kpts_match, matches_all[:, 0]
+        return target_kpts_match, matches_all[:, 0], scores

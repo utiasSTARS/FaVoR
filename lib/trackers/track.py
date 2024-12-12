@@ -3,6 +3,7 @@
 #  Institute for Aerospace Studies).
 #  This file is subject to the terms and conditions defined in the file
 #  'LICENSE', which is part of this source code package.
+
 import numpy as np
 import torch
 from einops import rearrange
@@ -71,6 +72,81 @@ class Track:
         """Mark the track as alive."""
         self._is_dead = False
 
+    def feature_channels(self) -> int:
+        """Return the number of feature channels."""
+        return self.features[0].shape[-1]
+
+    def set_alive(self):
+        """Set the track alive"""
+        self._is_dead = False
+
+    def get_last_frame_id(self):
+        """Return the last frame id"""
+        return self.last_frame_id
+
+    def get_pts(self):
+        """Return the tracked points"""
+        return self.points
+
+    def get_features(self):
+        """Return the tracked features"""
+        return self.features
+
+    def get_pts_tensor(self, device=torch.device('cpu')):
+        """Return the tracked points"""
+        return torch.tensor(np.array(self.points), device=device).to(torch.float32)
+
+    def get_poses_tensor(self, device=torch.device('cpu')):
+        """Return the tracked poses"""
+        return torch.tensor(np.array(self.poses), device=device).to(torch.float32)
+    
+    def get_features_tensor(self):
+        """Return features as a tensor."""
+        return torch.tensor(self.features, dtype=torch.float32)
+
+    def get_patches_tensor(self):
+        """Return patches as a tensor."""
+        return torch.tensor(np.stack(self.patches), dtype=torch.float32)
+
+    def get_patches(self):
+        """Return the tracked patches"""
+        return self.patches
+
+    def get_frames_ids(self):
+        """Return the frames ids of the tracked points"""
+        return self.frames_id
+
+    def init_descriptor(self):
+        """Initialize the track descriptor as the median of the descriptors list."""
+        self.track_descriptor = np.median(np.array(self.descriptors_list), axis=0)
+
+    def set_xyz_min(self, xyz_min):
+        self.xyz_min = torch.tensor(xyz_min.reshape((3,))).to(torch.float32)
+
+    def set_xyz_max(self, xyz_max):
+        self.xyz_max = torch.tensor(xyz_max.reshape((3,))).to(torch.float32)
+
+    def set_near(self, near):
+        self.near = near
+
+    def set_far(self, far):
+        self.far = far
+
+    def set_refined_points(self, pts):
+        self.points = pts
+
+    def set_w_point(self, point):
+        """Set the world coordinates of the tracked point"""
+        self.point_w = point
+
+    def get_w_point(self):
+        """Return the world coordinates of the tracked point"""
+        return self.point_w
+
+    def get_id(self):
+        """Return the track id"""
+        return self._id
+
     def append(self, point, pose, feat, patch, frame_id, prev_point=None, descriptor=None):
         """
         Append a new point, pose, feature, and patch to the track.
@@ -114,14 +190,6 @@ class Track:
             self.set_alive()
             return True
         return False
-
-    def get_features_tensor(self):
-        """Return features as a tensor."""
-        return torch.tensor(self.features, dtype=torch.float32)
-
-    def get_patches_tensor(self):
-        """Return patches as a tensor."""
-        return torch.tensor(np.stack(self.patches), dtype=torch.float32)
 
     def enhance(self, track):
         """
