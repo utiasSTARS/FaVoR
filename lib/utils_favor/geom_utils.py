@@ -15,7 +15,7 @@ Collection of geometric utility functions.
 """
 
 
-def mnn_matcher(desc1: np.ndarray, desc2: np.ndarray, match_thr: float = 0.9) -> np.ndarray:
+def mnn_matcher(desc1: np.ndarray, desc2: np.ndarray, match_thr: float = 0.9) -> Tuple[np.ndarray, np.ndarray]:
     """
     Finds matches between two descriptor lists (desc1 and desc2) using mutual nearest neighbor (MNN) matching.
 
@@ -26,9 +26,10 @@ def mnn_matcher(desc1: np.ndarray, desc2: np.ndarray, match_thr: float = 0.9) ->
 
     Returns:
         np.ndarray: Array of matches with shape (N, 2), where each row is a pair of matched indices.
+        np.ndarray: Array of similarity scores for each match.
     """
     if desc1.shape[0] == 0 or desc2.shape[0] == 0:
-        return np.zeros((0, 2), dtype=int)
+        return np.zeros((0, 2), dtype=int), np.zeros(0, dtype=float)
 
     # Compute similarity matrix
     sim = desc1 @ desc2.T
@@ -43,7 +44,8 @@ def mnn_matcher(desc1: np.ndarray, desc2: np.ndarray, match_thr: float = 0.9) ->
     mask = (ids1 == nn21[nn12])
     matches = np.stack([ids1[mask], nn12[mask]], axis=1)
 
-    return matches
+    scores = np.array(sim[mask, nn12[mask]])
+    return matches, scores
 
 
 def geometric_check(
