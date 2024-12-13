@@ -17,7 +17,6 @@ Dataloader Base Class
     :members:
     :undoc-members:
     :show-inheritance:
-    :no-index:
 
 Dataloader for Cambridge Landmarks Dataset
 ------------------------------------------

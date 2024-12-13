@@ -10,3 +10,6 @@ Contents:
    home
    installation
    datasets
+   extractors
+   trackers
+   models
