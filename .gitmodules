@@ -1,10 +1,9 @@
-[submodule "thirdparty/ALIKE"]
-	path = thirdparty/ALIKE
-	url = https://github.com/Shiaoming/ALIKE.git
 [submodule "thirdparty/PoseLib"]
 	path = thirdparty/PoseLib
 	url = https://github.com/PoseLib/PoseLib.git
 [submodule "thirdparty/SuperPoint"]
 	path = thirdparty/SuperPoint
 	url = https://github.com/rpautrat/SuperPoint.git
-	branch = master
+[submodule "thirdparty/ALIKE"]
+	path = thirdparty/ALIKE
+	url = git@github.com:Shiaoming/ALIKE.git
