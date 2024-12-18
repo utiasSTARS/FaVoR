@@ -1,7 +1,7 @@
 _base_ = '../default_base.py'
 
 expname = 'StMarysChurch_Cambridge'
-basedir = './logs/lm_track_Cambridge_3x3_10k'
+basedir = './logs/Cambridge_release'
 
 data = dict(
     scene='StMarysChurch',

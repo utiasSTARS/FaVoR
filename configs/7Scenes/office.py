@@ -1,7 +1,7 @@
 _base_ = '../default_base.py'
 
 expname = 'office_7scenes'
-basedir = './logs/lm_track_7scenes_3x3'
+basedir = './logs/7Scenes_release'
 
 data = dict(
     scene='office',

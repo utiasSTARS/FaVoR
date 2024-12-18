@@ -34,6 +34,7 @@ train = dict(
 ''' Template of model and rendering options
 '''
 model_and_render = dict(
+    num_voxels=3 * 3 * 3,  # expected number of voxel, default is 3x3x3
     density_config=dict(),
     k0_config=dict(),
     mask_cache_thres=1e-3,  # threshold to determine a tighten BBox in the fine stage
