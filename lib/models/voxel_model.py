@@ -11,9 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from torch_scatter import segment_coo
-from lib.grid import DenseGrid, MaskGrid
-
-import lib.cuda
+from lib.models.grid import DenseGrid, MaskGrid
 
 
 class VoxelModel(nn.Module):
@@ -26,7 +24,6 @@ class VoxelModel(nn.Module):
                  xyz_min,  # Minimum coordinates for the voxel grid
                  xyz_max,  # Maximum coordinates for the voxel grid
                  num_voxels=0,  # Total number of voxels in the grid
-                 num_voxels_base=0,  # Base number of voxels used for initial grid size calculation
                  alpha_init=None,  # Initial alpha value for the grid
                  mask_cache_path=None,  # Path to cache for pre-computed mask grid
                  mask_cache_thres=1e-3,  # Threshold for mask cache filtering
@@ -57,10 +54,6 @@ class VoxelModel(nn.Module):
         # Register voxel grid boundaries as buffers
         self.register_buffer('xyz_min', torch.Tensor(xyz_min))
         self.register_buffer('xyz_max', torch.Tensor(xyz_max))
-
-        # Calculate voxel grid resolution
-        self.num_voxels_base = num_voxels_base
-        self.voxel_size_base = ((self.xyz_max - self.xyz_min).prod() / self.num_voxels_base).pow(1 / 3)
 
         # Initialize density and color grid
         self.alpha_init = alpha_init
@@ -118,9 +111,9 @@ class VoxelModel(nn.Module):
         Sets the resolution of the voxel grid based on the number of voxels.
         """
         self.num_voxels = num_voxels
-        self.voxel_size = ((self.xyz_max - self.xyz_min).prod() / num_voxels).pow(1 / 3)
+        self.voxel_size = ((self.xyz_max - self.xyz_min).prod() / self.num_voxels).pow(1 / 3)
         self.world_size = ((self.xyz_max - self.xyz_min) / self.voxel_size).long()
-        self.voxel_size_ratio = self.voxel_size / self.voxel_size_base
+        self.voxel_size_ratio = 1.
 
     def get_kwargs(self):
         """
@@ -130,7 +123,6 @@ class VoxelModel(nn.Module):
             'xyz_min': self.xyz_min.cpu().numpy(),
             'xyz_max': self.xyz_max.cpu().numpy(),
             'num_voxels': self.num_voxels,
-            'num_voxels_base': self.num_voxels_base,
             'alpha_init': self.alpha_init,
             'voxel_size_ratio': self.voxel_size_ratio,
             'vox_id': self.vox_id,
@@ -192,7 +184,6 @@ class VoxelModel(nn.Module):
         """
         Converts raw density values to alpha values using a custom activation function.
         """
-        interval = interval if interval is not None else self.voxel_size_ratio
         return Raw2Alpha.apply(density.flatten(), self.act_shift, interval).reshape(density.shape)
 
     def sample_ray(self, rays_o, rays_d):
@@ -244,7 +235,7 @@ class VoxelModel(nn.Module):
 
         # Sample points along rays
         ray_pts, ray_id, step_id, t = self.sample_ray(rays_o=rays_o, rays_d=rays_d)
-        interval = 0.1 * self.voxel_size_ratio
+        interval = 0.1 * 1.0  # self.voxel_size_ratio
 
         # Apply mask cache to skip known free space
         if self.mask_cache is not None:
@@ -307,3 +298,49 @@ class VoxelModel(nn.Module):
             't': t,
             's': s,
         }
+
+
+class Raw2Alpha(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, density, shift, interval):
+        '''
+        alpha = 1 - exp(-softplus(density + shift) * interval)
+              = 1 - exp(-log(1 + exp(density + shift)) * interval)
+              = 1 - exp(log(1 + exp(density + shift)) ^ (-interval))
+              = 1 - (1 + exp(density + shift)) ^ (-interval)
+        '''
+        exp, alpha = torch.ops.render_utils.raw2alpha(density, shift, interval)
+        if density.requires_grad:
+            ctx.save_for_backward(exp)
+            ctx.interval = interval
+        return alpha
+
+    @staticmethod
+    @torch.autograd.function.once_differentiable
+    def backward(ctx, grad_back):
+        '''
+        alpha' = interval * ((1 + exp(density + shift)) ^ (-interval-1)) * exp(density + shift)'
+               = interval * ((1 + exp(density + shift)) ^ (-interval-1)) * exp(density + shift)
+        '''
+        exp = ctx.saved_tensors[0]
+        interval = ctx.interval
+        return torch.ops.render_utils.raw2alpha_backward(exp, grad_back.contiguous(), interval), None, None
+
+
+class Alphas2Weights(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, alpha, ray_id, N):
+        weights, T, alphainv_last, i_start, i_end = torch.ops.render_utils.alpha2weight(alpha, ray_id, N)
+        if alpha.requires_grad:
+            ctx.save_for_backward(alpha, weights, T, alphainv_last, i_start, i_end)
+            ctx.n_rays = N
+        return weights, alphainv_last
+
+    @staticmethod
+    @torch.autograd.function.once_differentiable
+    def backward(ctx, grad_weights, grad_last):
+        alpha, weights, T, alphainv_last, i_start, i_end = ctx.saved_tensors
+        grad = torch.ops.render_utils.alpha2weight_backward(
+            alpha, weights, T, alphainv_last,
+            i_start, i_end, ctx.n_rays, grad_weights, grad_last)
+        return grad, None, None

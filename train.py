@@ -3,7 +3,7 @@ import sys
 import mmengine
 from torch import nn
 
-from lib.models import FaVoRmodel
+from lib.models.favor_model import FaVoRmodel
 
 from lib.utils_favor.misc_utils import get_training_rays, create_voxels_args, load_model, resume_model, \
     create_new_model, store_model, seed_env, init_device, parse_args, create_dataloader, create_tracker, redirect2log, \
@@ -48,7 +48,7 @@ def train(model: FaVoRmodel, cfg: mmengine.Config, K: np.ndarray, device: torch.
         time_start = time.time()
 
         vox.is_training()
-        optimizer = create_optimizer_or_freeze_model(vox, cfg.coarse_train, global_step=0)
+        optimizer = create_optimizer_or_freeze_model(vox, cfg.train, global_step=0)
 
         # Retrieve the track for a given voxel
         track_id = map_track.get(f'{vox.vox_id}')
@@ -101,7 +101,7 @@ def count_voxel_views(vox, rays_o_tr, rays_d_tr, imsz, cfg):
     """Compute the number of views for a voxel."""
     try:
         return vox.voxel_count_views(rays_o_tr=rays_o_tr, rays_d_tr=rays_d_tr, imsz=imsz, near=0.2,
-                                     stepsize=cfg.coarse_model_and_render.stepsize, downrate=1)
+                                     stepsize=cfg.model_and_render.stepsize, downrate=1)
     except Exception as e:
         print_error(f"Error in voxel view count: {e}")
         vox.trained = False
@@ -119,7 +119,7 @@ def setup_voxel_mask(vox, optimizer, cnt):
 def train_voxel(vox, feature_tr, rays_o_tr, rays_d_tr, channels, optimizer, cfg, cos):
     """Train a single voxel."""
     psnr = 0
-    for iter in range(2000):
+    for iter in range(cfg.train.N_iters):
         loss, render_result = voxel_training_step(vox, feature_tr, rays_o_tr, rays_d_tr, channels, optimizer, cos, iter,
                                                   cfg)
         psnr += mse2psnr(loss.detach() / 4.).cpu().numpy()  # Desc range is [-1, 1]
@@ -134,9 +134,9 @@ def train_voxel(vox, feature_tr, rays_o_tr, rays_d_tr, channels, optimizer, cfg,
 
 def voxel_training_step(vox, feature_tr, rays_o_tr, rays_d_tr, channels, optimizer, cos, iter, cfg):
     """Perform a single training iteration for a voxel."""
-    sel_b = torch.randint(feature_tr.shape[0], [1024])
-    sel_r = torch.randint(feature_tr.shape[1], [1024])
-    sel_c = torch.randint(feature_tr.shape[2], [1024])
+    sel_b = torch.randint(feature_tr.shape[0], [cfg.train.N_rand])
+    sel_r = torch.randint(feature_tr.shape[1], [cfg.train.N_rand])
+    sel_c = torch.randint(feature_tr.shape[2], [cfg.train.N_rand])
 
     target = feature_tr[sel_b, sel_r, sel_c]
     rays_o = rays_o_tr[sel_b, sel_r, sel_c]
@@ -167,10 +167,10 @@ def compute_loss(render_result, target, channels, cos, iter):
 
 def apply_total_variation_loss(vox, cfg, ray_count):
     """Apply total variation loss to the voxel."""
-    if cfg.fine_train.weight_tv_density > 0:
-        vox.density_total_variation_add_grad(cfg.fine_train.weight_tv_density / ray_count, True)
-    if cfg.fine_train.weight_tv_k0 > 0:
-        vox.k0_total_variation_add_grad(cfg.fine_train.weight_tv_k0 / ray_count, True)
+    if cfg.train.weight_tv_density > 0:
+        vox.density_total_variation_add_grad(cfg.train.weight_tv_density / ray_count, True)
+    if cfg.train.weight_tv_k0 > 0:
+        vox.k0_total_variation_add_grad(cfg.train.weight_tv_k0 / ray_count, True)
 
 
 def process_training_result(vox, psnr, delta_time, all_psnrs, all_times, track):
@@ -241,13 +241,13 @@ if __name__ == '__main__':
     model = resume_model(cfg.root_dir)
     if model is None:
         print_info("Model not loaded, creating a new one...")
-        voxels_args = create_voxels_args(cfg_model=cfg.coarse_model_and_render,
-                                         num_voxels=cfg.coarse_model_and_render.num_voxels,
-                                         cfg_train=cfg.coarse_train,
+        voxels_args = create_voxels_args(cfg_model=cfg.model_and_render,
+                                         num_voxels=cfg.model_and_render.num_voxels,
+                                         cfg_train=cfg.train,
                                          stage='coarse',
                                          tracks=tracks)
 
-        model = create_new_model(cfg_model=cfg.coarse_model_and_render,
+        model = create_new_model(cfg_model=cfg.model_and_render,
                                  voxels_args=voxels_args,
                                  channels=channels,
                                  device=device)

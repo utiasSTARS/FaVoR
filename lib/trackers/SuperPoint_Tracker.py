@@ -19,7 +19,7 @@ from lib.feature_extractors.SuperPoint_extractor import SuperPointExtractor
 from lib.trackers.track import Track
 from lib.trackers.base_tracker import BaseTracker
 from lib.utils_favor.geom_utils import mnn_matcher, geometric_check, patch_creator
-from lib.utils_favor.visualizer_utils import draw_kpts, visualize_images
+from lib.utils_favor.visualizer_utils import draw_kpts, visualize_images, to8b
 from copy import deepcopy
 
 
@@ -123,7 +123,7 @@ class SuperPointTracker(BaseTracker):
                     self.tracks.append(new_track)
             else:
                 # match the descriptors
-                matches_all = mnn_matcher(desc, self.prev_desc, 0.8)
+                matches_all, _ = mnn_matcher(desc, self.prev_desc, 0.8)
                 # update the points
                 kpts_match = kpts[matches_all[:, 0]]
                 prev_pts_match = self.prev_pts[matches_all[:, 1]]
@@ -160,7 +160,8 @@ class SuperPointTracker(BaseTracker):
                         self.tracks.append(deepcopy(new_track))
 
                 if self.log:
-                    visualize_images([self.prev_frame, img_rgb, draw_kpts(img_rgb, prev_pts_match, kpts_match)], 1, 3)
+                    cv2.imshow("Matches", draw_kpts(img_rgb, prev_pts_match, kpts_match))
+                    cv2.waitKey(1)
 
                 self.prev_frame = img_rgb
                 self.prev_pts = kpts.copy()
@@ -249,7 +250,7 @@ class SuperPointTracker(BaseTracker):
         kpts2 = res2['keypoints']
         desc2 = res2['descriptors']
 
-        matches_all = mnn_matcher(desc, desc2, 0.8)
+        matches_all, _ = mnn_matcher(desc, desc2, 0.8)
 
         kpts_match = kpts[matches_all[:, 0]]
         prev_pts_match = kpts2[matches_all[:, 1]]

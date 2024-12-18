@@ -3,6 +3,7 @@ import time
 
 import cv2
 import numpy as np
+from tqdm import tqdm
 
 from lib.utils_favor.log_utils import print_info, print_success
 from lib.utils_favor.transform_utils import CV2O3D
@@ -61,6 +62,7 @@ if __name__ == '__main__':
         sys.stdout = original_stdout
 
     # visualize the tracks if flag visualise is set
+    camera_poses_list = []
     if cfg.visualize:
         # load all the landmarks tracked
         landmarks = []
@@ -72,6 +74,7 @@ if __name__ == '__main__':
 
         print_info(f"Visualizing tracked points on {cfg.data.scene} scene test images")
         for img, cam_pose, _ in dataloader.get_test():
+            camera_poses_list.append(CV2O3D(cam_pose))
             cam_pose = np.linalg.inv(cam_pose)
 
             # project the landmarks to the image
@@ -92,19 +95,16 @@ if __name__ == '__main__':
                 cv2.circle(img, tuple(pt.astype(int)), 3, (0, 0, 255), -1)
 
             cv2.imshow("img", img)
-            cv2.waitKey(0)
+            cv2.waitKey(1)
 
         cv2.destroyAllWindows()
 
         # visualize poses and landmarks
         landmarks = []
-        camera_poses_list = []
-        for track in tracker.tracks:
+        for track in tqdm(tracker.tracks):
             if len(track) > 10:
                 landmarks.append(track.get_w_point())
-            for pose in track.poses:
-                camera_poses_list.append(CV2O3D(pose))
 
         visualize_camera_poses_and_points(camera_poses_list, landmarks)
 
-    print_success("Tracking completed successfully")
+print_success("Tracking completed successfully")

@@ -16,7 +16,7 @@ from lib.feature_extractors.ALIKE_extractor import AlikeExtractor
 from lib.trackers.track import Track
 from lib.trackers.base_tracker import BaseTracker
 from lib.utils_favor.geom_utils import mnn_matcher, geometric_check, patch_creator
-from lib.utils_favor.visualizer_utils import visualize_img, draw_kpts, visualize_images, to8b
+from lib.utils_favor.visualizer_utils import draw_kpts, to8b
 from thirdparty.ALIKE.alike import configs as alike_configs
 import copy
 import gc
@@ -142,7 +142,7 @@ class AlikeTracker(BaseTracker):
                     prev_pts_match = self.prev_pts[mask]
                 else:
                     # match the descriptors
-                    matches_all = mnn_matcher(desc, self.prev_desc, 0.7)
+                    matches_all, _ = mnn_matcher(desc, self.prev_desc, 0.7)
                     # update the points
                     kpts_match = kpts[matches_all[:, 0]]
                     prev_pts_match = self.prev_pts[matches_all[:, 1]]
@@ -242,7 +242,7 @@ class AlikeTracker(BaseTracker):
         kpts2 = res2['keypoints']
         desc2 = res2['descriptors']
 
-        matches_all = mnn_matcher(desc, desc2)
+        matches_all, _ = mnn_matcher(desc, desc2)
 
         kpts_match = kpts[matches_all[:, 0]]
         prev_pts_match = kpts2[matches_all[:, 1]]
