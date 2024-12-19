@@ -395,6 +395,7 @@ def create_optimizer_or_freeze_model(model, cfg_train, global_step):
 
     param_groups = []
 
+    first_param = False
     for key in cfg_train.keys():
         # Check for keys prefixed with 'lrate_'
         if not key.startswith('lrate_'):
@@ -410,6 +411,10 @@ def create_optimizer_or_freeze_model(model, cfg_train, global_step):
         param = getattr(model, param_name)
         if param is None:
             continue  # Skip if the parameter does not exist
+
+        if not first_param:
+            first_param = True
+            assert key != 'lrate_density' "First parameter must be density"
 
         # Compute the learning rate for the parameter
         lr = getattr(cfg_train, key) * decay_factor
@@ -612,16 +617,6 @@ def create_voxels_args(cfg_model, num_voxels: int, cfg_train, stage: str, tracks
     voxels_args = []
     for i, track in enumerate(tracks):
         xyz_min, xyz_max = track.xyz_min, track.xyz_max
-
-        # Adjust the number of voxels if progressive scaling is applied
-        if len(cfg_train.pg_scale):
-            num_voxels = int(num_voxels / (2 ** len(cfg_train.pg_scale)))
-
-        # Adjust bounds based on the world's boundary scale
-        if abs(cfg_model.world_bound_scale - 1) > 1e-9:  # Consider removing if always 0
-            xyz_shift = (xyz_max - xyz_min) * (cfg_model.world_bound_scale - 1) / 2
-            xyz_min -= xyz_shift
-            xyz_max += xyz_shift
 
         # Collect voxel arguments for the current track
         voxel_args = {

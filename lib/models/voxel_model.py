@@ -145,6 +145,35 @@ class VoxelModel(nn.Module):
         """
         self.trained = True
 
+    def voxel_count_views(self, rays_o_tr, rays_d_tr, imsz, near, stepsize, downrate=1, irregular_shape=False):
+        far = 1e9  # the given far can be too small while rays stop when hitting scene bbox
+        N_samples = int(np.linalg.norm(np.array(self.world_size.cpu()) + 1) / stepsize) + 1
+        rng = torch.arange(N_samples)[None].float()
+        count = torch.zeros_like(self.density.get_dense_grid())
+        device = rng.device
+        for rays_o_, rays_d_ in zip(rays_o_tr.split(imsz), rays_d_tr.split(imsz)):
+            ones = DenseGrid(1, self.world_size, self.xyz_min, self.xyz_max)
+            if irregular_shape:
+                rays_o_ = rays_o_.split(10000)
+                rays_d_ = rays_d_.split(10000)
+            else:
+                rays_o_ = rays_o_[::downrate, ::downrate].to(device).flatten(0, -2).split(10000)
+                rays_d_ = rays_d_[::downrate, ::downrate].to(device).flatten(0, -2).split(10000)
+
+            for rays_o, rays_d in zip(rays_o_, rays_d_):
+                vec = torch.where(rays_d == 0, torch.full_like(rays_d, 1e-6), rays_d)
+                rate_a = (self.xyz_max - rays_o) / vec
+                rate_b = (self.xyz_min - rays_o) / vec
+                t_min = torch.minimum(rate_a, rate_b).amax(-1).clamp(min=near, max=far)
+                # t_max = torch.maximum(rate_a, rate_b).amin(-1).clamp(min=near, max=far)
+                step = stepsize * self.voxel_size * rng
+                interpx = (t_min[..., None] + step / rays_d.norm(dim=-1, keepdim=True))
+                rays_pts = rays_o[..., None, :] + rays_d[..., None, :] * interpx[..., None]
+                ones(rays_pts).sum().backward()
+            with torch.no_grad():
+                count += (ones.grid.grad > 1)
+        return count
+
     @torch.no_grad()
     def scale_volume_grid(self, num_voxels):
         """
@@ -180,6 +209,14 @@ class VoxelModel(nn.Module):
         cache_grid_alpha = F.max_pool3d(cache_grid_alpha, kernel_size=3, padding=1, stride=1)[0, 0]
         self.mask_cache.mask &= (cache_grid_alpha > self.fast_color_thres)
 
+    def density_total_variation_add_grad(self, weight, dense_mode):
+        w = weight * self.world_size.max() / self.channels
+        self.density.total_variation_add_grad(w, w, w, dense_mode)
+
+    def k0_total_variation_add_grad(self, weight, dense_mode):
+        w = weight * self.world_size.max() / self.channels
+        self.k0.total_variation_add_grad(w, w, w, dense_mode)
+        
     def activate_density(self, density, interval=None):
         """
         Converts raw density values to alpha values using a custom activation function.

@@ -13,7 +13,7 @@ from lib.utils_favor.file_utils import store_obj
 from lib.utils_favor.geom_utils import pose_error, IterativePnP
 from lib.utils_favor.log_utils import print_info, print_success
 from lib.utils_favor.misc_utils import matcher_fast, seed_env, init_device, parse_args, create_dataloader, \
-    create_tracker, load_model, redirect2log, model2channels
+    create_tracker, load_model, redirect2log, model2channels, log_results
 from lib.utils_favor.visualizer_utils import score_to_rgb, visualize_camera_poses
 from lib.models.favor_model import FaVoRmodel
 
@@ -348,6 +348,10 @@ if __name__ == '__main__':
 
         # Iterate PnP to find pose
         iter_pnp(img, match_img, pose_gt, pose_prior)
+
+    time_in_seconds = int(time.time() - starting_time_sec)
+    # log results
+    log_results()
 
 
     # store the results:
