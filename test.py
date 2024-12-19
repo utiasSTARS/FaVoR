@@ -14,7 +14,7 @@ from lib.utils_favor.geom_utils import pose_error, IterativePnP, matcher_fast
 from lib.utils_favor.log_utils import print_info, print_success
 from lib.utils_favor.misc_utils import seed_env, init_device, parse_args, create_dataloader, \
     create_tracker, load_model, redirect2log, model2channels, log_results
-from lib.utils_favor.visualizer_utils import score_to_rgb, visualize_camera_poses
+from lib.utils_favor.visualizer_utils import score_to_rgb, visualize_camera_poses, visualize_matches
 from lib.models.favor_model import FaVoRmodel
 
 
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     model.top_n(top_voxels)
 
     # create a log file and redirect stdout there
-    f, original_stdout = redirect2log(cfg.root_dir, "test")
+    f, original_stdout = redirect2log(cfg.root_dir, "results")
 
     # print options
     print_info(f"Reprojection error: {cfg.data.reprojection_error[cfg.data.net_model]}")
@@ -75,7 +75,6 @@ if __name__ == '__main__':
     # ------------------- Start Testing -------------------
     print_info(f"Testing {cfg.data.scene} scene")
     tot_iterations = 3
-    cfg.visualize = False
     iter_pnp = IterativePnP(model=model,
                             K=dataloader.camera.K,
                             reprojection_error=cfg.data.reprojection_error[cfg.data.net_model],
@@ -83,7 +82,7 @@ if __name__ == '__main__':
                             max_iter=tot_iterations,
                             tracker=tracker,
                             visualization=cfg.visualize)
-    match_img = []
+    # match_img = []
     init_dist_errors, init_angle_errors = [], []
     tot_iter = 0
     starting_time_sec = time.time()
@@ -94,27 +93,8 @@ if __name__ == '__main__':
         init_dist_errors.append(err_dist_init)
         init_angle_errors.append(err_angle_init)
 
-        # set the image for visualization
-        if cfg.visualize:
-            # white image 2 times the size of img
-            match_img = np.ones((dataloader.camera.height, 2 * dataloader.camera.width, 3), dtype=np.uint8) * 255
-            match_img[:, dataloader.camera.width:, :] = copy.deepcopy(img)
-
-            gt_keypoints, _ = model.project_points(K=dataloader.camera.K,
-                                                   c2w=pose_gt,
-                                                   h=dataloader.camera.height,
-                                                   w=dataloader.camera.width)
-
-            for gt_kps in gt_keypoints:
-                match_img = cv2.circle(match_img, (int(img.shape[1] + gt_kps[0]), int(gt_kps[1])), 3,
-                                       (0, 255, 0),
-                                       -1)
-                match_img = cv2.circle(match_img, (int(gt_kps[0]), int(gt_kps[1])), 2,
-                                       (0, 255, 0),
-                                       -1)
-
         # Iterate PnP to find pose
-        iter_pnp(img, match_img, pose_gt, pose_prior)
+        iter_pnp(img, pose_gt, pose_prior)
 
     time_in_seconds = int(time.time() - starting_time_sec)
     # log results

@@ -511,9 +511,10 @@ def log_results(cfg, tot_iter, init_dist_errors, init_angle_errors, estimated_di
 
     # Matches per iteration
     print_info("Number of matches per iteration:")
-    for i in range(len(estimated_dist_errors)):
-        print_info(f"{i + 1}st iter: {matches_per_iter[i] / tot_iter:.2f}")
+    suffix = lambda n: "th" if 11 <= (n % 100) <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
 
+    for i in range(len(estimated_dist_errors)):
+        print_info(f"{i + 1}{suffix(i + 1)} iter: {matches_per_iter[i] / tot_iter:.2f}")
     print_info("-----------------------------------------")
 
 

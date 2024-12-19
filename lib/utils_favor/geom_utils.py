@@ -486,10 +486,10 @@ class IterativePnP:
         self.estimated_dist_errors = [[], [], []]
         self.estimated_angle_errors = [[], [], []]
         self.iterate = 0
-        self.favor_estimates = [0, 0, 0]
+        self.favor_estimates = []
         self.matches_per_iter = [0, 0, 0]
 
-    def __call__(self, image, out_img, pose_gt, pose_prior):
+    def __call__(self, image, pose_gt, pose_prior):
         # Reset values
         # self._initialize()
         iterate = 0
@@ -500,11 +500,12 @@ class IterativePnP:
 
         matched_landmarks_out = []
 
+        img = copy.deepcopy(image)
         while iterate < self.max_iter:
             iterate += 1
             # Match points
             matched_rendered_kpts, matched_target_kpts, matched_landmarks, rendered_pts, rendered_landmasks, scores = matcher_fast(
-                self.model, image, self.tracker, self.K, pose_prior, self.match_threshold)
+                self.model, image, self.tracker, self.K, cam_poses_list[-1], self.match_threshold)
 
             # Early stop if no matches found
             if len(matched_landmarks) == 0:
@@ -512,7 +513,7 @@ class IterativePnP:
                 for _ in range(self.max_iter - iterate):
                     self.estimated_dist_errors[iterate - 1].append(np.inf)
                     self.estimated_angle_errors[iterate - 1].append(np.inf)
-                    self.iterate += 1
+                    # self.iterate += 1
                 break
 
             # Pose adjustment using matched points
@@ -523,11 +524,6 @@ class IterativePnP:
             matched_rendered_kpts = matched_rendered_kpts[inliers]
             matched_landmarks = matched_landmarks[inliers]
 
-            # Visualization of matches
-            if self.visualization:
-                out_img = visualize_matches(image, out_img, matched_rendered_kpts, matched_target_kpts,
-                                            rendered_landmasks,
-                                            pose_prior, self.K)
             inliers = np.sum(np.array(inliers))
             self.matches_per_iter[iterate - 1] += inliers
             if inliers <= 3:
@@ -535,13 +531,13 @@ class IterativePnP:
                 for _ in range(self.max_iter - iterate):
                     self.estimated_dist_errors[iterate - 1].append(np.inf)
                     self.estimated_angle_errors[iterate - 1].append(np.inf)
-                    self.iterate += 1
+                    # self.iterate += 1
                 break
 
             # Update results
             matched_landmarks_out.append(matched_landmarks)
             self.target_kpts.append(matched_target_kpts)
-            self.estimated_kpts.append(matched_rendered_kpts)
+            self.estimated_kpts.append(copy.deepcopy(matched_rendered_kpts))
             self.scores.append(scores)
 
             # Update pose and error calculations
@@ -550,7 +546,33 @@ class IterativePnP:
             self.estimated_angle_errors[iterate - 1].append(err_angle)
 
             cam_poses_list.append(copy.deepcopy(T_star))
-            self.favor_estimates[iterate - 1] += 1
+            self.iterate += 1
 
+            # # Visualization of matches
+            if self.visualization:
+                # draw matches on image
+                # clean the part of the image with the text
+                img[0:50, 0:210] = 255
+
+                # write error
+                cv2.putText(img, f"Error: {err_dist:.2f} m, {err_angle:.2f} deg", (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.5,
+                            (0, 0, 255), 2)
+                cv2.putText(img, f"Iteration: {iterate}", (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+
+                for i in range(len(matched_target_kpts)):
+                    cv2.line(img, (int(matched_target_kpts[i][0]), int(matched_target_kpts[i][1])),
+                             (int(matched_rendered_kpts[i][0]), int(matched_rendered_kpts[i][1])), (255, 0, 0), 1)
+                    cv2.circle(img, (int(matched_target_kpts[i][0]), int(matched_target_kpts[i][1])), 2, (0, 255, 0),
+                               -1)
+                    cv2.circle(img, (int(matched_rendered_kpts[i][0]), int(matched_rendered_kpts[i][1])),
+                               self.max_iter - iterate + 1,
+                               (0, int(255 * iterate / self.max_iter), 255),
+                               -1)
+
+                cv2.imshow("Matches", img)
+                cv2.waitKey(1)
+
+        self.favor_estimates.append(iterate)
         self.matched_landmarks.append(matched_landmarks_out)
         self.camera_poses_list.append(cam_poses_list)

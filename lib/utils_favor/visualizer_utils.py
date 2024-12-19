@@ -127,12 +127,11 @@ def jet_img(map: np.ndarray) -> np.ndarray:
     return cv2.applyColorMap(normalized_img, cv2.COLORMAP_JET)
 
 
-def visualize_matches(image, match_img, matched_estimated_kpts, target_kpts, estimated_landmarks, pose, K):
+def visualize_matches(match_img, matched_estimated_kpts, gt_keypoints):
     """
     Visualize matches during the PnP process, including estimated keypoints and ground truth.
 
     Args:
-        image (np.ndarray): Original input image (H x W x C).
         match_img (np.ndarray): Image for visualization (H x 2W x C).
         matched_estimated_kpts (np.ndarray): Estimated matched keypoints (N x 2).
         target_kpts (np.ndarray): Target matched keypoints (N x 2).
@@ -143,35 +142,19 @@ def visualize_matches(image, match_img, matched_estimated_kpts, target_kpts, est
     Returns:
         np.ndarray: Updated visualization image.
     """
+
     if len(matched_estimated_kpts) == 0:
         return match_img
 
-    # Draw matched estimated keypoints
-    for kp in matched_estimated_kpts:
-        match_img = cv2.circle(match_img, (int(kp[0]), int(kp[1])), 4, (0, 255, 255), 1)
+    for kp in gt_keypoints:
+        match_img = cv2.circle(match_img, (int(kp[0]), int(kp[1])), 4, (0, 255, 0), -1)
 
-    # Project estimated landmarks into 2D
-    ppp = np.linalg.inv(pose)[:3, :]
-    kpts_cam = ppp[:, :3] @ estimated_landmarks.transpose() + ppp[:, 3:]
-    kps = K @ kpts_cam
-    kps = kps[:2] / kps[2]
-    kps = kps.transpose()
-    for kp in kps:
-        match_img = cv2.circle(match_img, (int(kp[0]), int(kp[1])), 2, (255, 0, 255), -1)
-
-    # Draw target matches
-    for est_kp in matched_estimated_kpts:
-        match_img = cv2.circle(match_img, (int(image.shape[1] + est_kp[0]), int(est_kp[1])), 2, (0, 100, 255), -1)
-    for matched_kp, targ_kp in zip(matched_estimated_kpts, target_kpts):
-        match_img = cv2.circle(match_img, (int(matched_kp[0]), int(matched_kp[1])), 3, (255, 0, 255), -1)
-        match_img = cv2.circle(match_img, (int(image.shape[1] + targ_kp[0]), int(targ_kp[1])), 3, (255, 0, 0), -1)
-
-    # Add a legend to the visualization
-    match_img = image_with_legend(
-        match_img,
-        colors=[(0, 255, 0), (0, 100, 255), (255, 0, 255), (255, 0, 0)],
-        labels=['Ground Truth', 'All estimated', 'Matched estimated', 'Matched target']
-    )
+    # draw points between the estimated keypoints
+    for i in range(len(matched_estimated_kpts)):
+        for j in range(len(matched_estimated_kpts[i])):
+            match_img = cv2.circle(match_img,
+                                   (int(matched_estimated_kpts[i][j][0]), int(matched_estimated_kpts[i][j][1])),
+                                   3 - i, (255 * (i == 0), 100, 255 * (i == 1)), -1)
 
     # Display the visualization
     cv2.imshow('Matches difference', match_img)
