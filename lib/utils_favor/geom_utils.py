@@ -491,7 +491,7 @@ class IterativePnP:
 
     def __call__(self, image, out_img, pose_gt, pose_prior):
         # Reset values
-        self._initialize()
+        # self._initialize()
         iterate = 0
 
         cam_poses_list = []
@@ -552,5 +552,5 @@ class IterativePnP:
             cam_poses_list.append(copy.deepcopy(T_star))
             self.favor_estimates[iterate - 1] += 1
 
-        self.matched_landmarks.append(matched_landmarks)
+        self.matched_landmarks.append(matched_landmarks_out)
         self.camera_poses_list.append(cam_poses_list)

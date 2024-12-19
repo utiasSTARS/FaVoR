@@ -456,22 +456,28 @@ def log_early_stop(iterate, max_iter, estimated_dist_errors, estimated_angle_err
         estimated_angle_errors[remaining_iter - 1].append(err_angle)
 
 
-def log_results(cfg, init_dist_errors, init_angle_errors, estimated_dist_errors, estimated_angle_errors, svfr_estimates,
-                matches_per_iter, count_tests, dense_vlad=False):
+def log_results(cfg, tot_iter, init_dist_errors, init_angle_errors, estimated_dist_errors, estimated_angle_errors,
+                matches_per_iter, dense_vlad=False):
     """
     Logs results for the pose estimation process, including errors and matches per iteration.
 
     Args:
         cfg: Configuration object with parameters for the process.
+        tot_iter (int): Total number of iterations.
         init_dist_errors (list): Initial distance errors.
         init_angle_errors (list): Initial angle errors.
         estimated_dist_errors (list of lists): Estimated distance errors per iteration.
         estimated_angle_errors (list of lists): Estimated angle errors per iteration.
-        svfr_estimates (list): Counts of valid poses per iteration.
         matches_per_iter (list): Number of matches per iteration.
-        count_tests (int): Total number of test cases.
         dense_vlad (bool): Whether Dense VLAD is used.
     """
+
+    thr_dist_value = 0.05
+    thr_angle_value = 5.0
+    if cfg.data.dataset_type == 'Cambridge':
+        thr_dist_value = 0.25
+        thr_angle_value = 2.0
+
     print_info(
         "----------------WITH DENSE VLAD----------------" if dense_vlad else "----------------W/O DENSE VLAD----------------")
 
@@ -490,27 +496,23 @@ def log_results(cfg, init_dist_errors, init_angle_errors, estimated_dist_errors,
     print_info("-----------------------------------------")
 
     # Per-iteration results
-    for i in range(len(svfr_estimates)):
-        if svfr_estimates[i] > 0:
-            print_info(f"{i + 1}st iter Median estimated distance error: {np.median(estimated_dist_errors[i]):.4f} m")
-            print_info(f"{i + 1}st iter Median estimated angle error: {np.median(estimated_angle_errors[i]):.4f} deg")
-            print_info(f"{i + 1}st iter Max estimated distance error: {np.max(estimated_dist_errors[i]):.4f} m")
-            print_info(f"{i + 1}st iter Max estimated angle error: {np.max(estimated_angle_errors[i]):.4f} deg")
-            ests_low = np.sum(
-                np.logical_and(np.array(estimated_dist_errors[i]) < 0.05, np.array(estimated_angle_errors[i]) < 5.0)
-            )
-            print_info(f"{i + 1}st iter, <5 cm && <5 deg: {ests_low}/{count_tests}")
-            print_info("-----------------------------------------")
+    for i in range(len(estimated_dist_errors)):
+        print_info(f"{i + 1}st iter Median estimated distance error: {np.median(estimated_dist_errors[i]):.4f} m")
+        print_info(f"{i + 1}st iter Median estimated angle error: {np.median(estimated_angle_errors[i]):.4f} deg")
+        print_info(f"{i + 1}st iter Max estimated distance error: {np.max(estimated_dist_errors[i]):.4f} m")
+        print_info(f"{i + 1}st iter Max estimated angle error: {np.max(estimated_angle_errors[i]):.4f} deg")
+        ests_low = np.sum(
+            np.logical_and(np.array(estimated_dist_errors[i]) < thr_dist_value,
+                           np.array(estimated_angle_errors[i]) < thr_angle_value)
+        )
+        print_info(
+            f"{i + 1}st iter, <{thr_dist_value * 100:.0f} cm && <{thr_angle_value:.0f} deg: {ests_low}/{tot_iter}")
+        print_info("-----------------------------------------")
 
     # Matches per iteration
     print_info("Number of matches per iteration:")
-    for i in range(len(matches_per_iter)):
-        if svfr_estimates[i] > 0:
-            print_info(f"{i + 1}st iter: {matches_per_iter[i] / svfr_estimates[i]:.2f}")
-
-    # Total iterations
-    for i in range(len(svfr_estimates)):
-        print_info(f"Total number of iterations {i + 1}: {svfr_estimates[i]}")
+    for i in range(len(estimated_dist_errors)):
+        print_info(f"{i + 1}st iter: {matches_per_iter[i] / tot_iter:.2f}")
 
     print_info("-----------------------------------------")
 
