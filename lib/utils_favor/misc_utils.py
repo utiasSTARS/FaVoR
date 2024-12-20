@@ -457,7 +457,7 @@ def log_early_stop(iterate, max_iter, estimated_dist_errors, estimated_angle_err
 
 
 def log_results(cfg, tot_iter, init_dist_errors, init_angle_errors, estimated_dist_errors, estimated_angle_errors,
-                matches_per_iter, dense_vlad=False):
+                matches_per_iter, n_voxels, dense_vlad=False):
     """
     Logs results for the pose estimation process, including errors and matches per iteration.
 
@@ -486,6 +486,8 @@ def log_results(cfg, tot_iter, init_dist_errors, init_angle_errors, estimated_di
     print_info(f"Reprojection error: {cfg.data.reprojection_error[cfg.data.net_model]}")
     print_info(f"Feature matching threshold: {cfg.data.match_threshold[cfg.data.net_model]}")
     print_info(f"Voxel-grid size: {cfg.model_and_render.num_voxels} voxels")
+    print_info(f"Number of iterations: {tot_iter}")
+    print_info(f"Number of voxels: {n_voxels}")
     print_info("-----------------------------------------")
 
     # Initial errors

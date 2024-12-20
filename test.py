@@ -63,12 +63,6 @@ if __name__ == '__main__':
     # create a log file and redirect stdout there
     f, original_stdout = redirect2log(cfg.root_dir, "results")
 
-    # print options
-    print_info(f"Reprojection error: {cfg.data.reprojection_error[cfg.data.net_model]}")
-    print_info(f"Feature matching threshold: {cfg.data.match_threshold[cfg.data.net_model]}")
-    print_info(f"Voxel-grid size: {cfg.model_and_render.num_voxels} voxels")
-    print_info(f"Patch size half: {cfg.data.patch_size_half}")
-
     channels = model2channels(cfg.data.net_model)
     print_info(f"\nChannels: {channels}")
 
@@ -101,7 +95,7 @@ if __name__ == '__main__':
     # cfg, init_dist_errors, init_angle_errors, estimated_dist_errors, estimated_angle_errors, svfr_estimates,
     #                 matches_per_iter, count_tests, dense_vlad=False
     log_results(cfg, tot_iter, init_dist_errors, init_angle_errors, iter_pnp.estimated_dist_errors,
-                iter_pnp.estimated_angle_errors, iter_pnp.matches_per_iter, dense_vlad=True)
+                iter_pnp.estimated_angle_errors, iter_pnp.matches_per_iter, model.get_n_voxels(), dense_vlad=True)
 
     # store the results:
 
