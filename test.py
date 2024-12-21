@@ -34,8 +34,7 @@ if __name__ == '__main__':
     if model is None:
         raise Exception("Model not loaded, train a model first!")
 
-    top_voxels = 1500 if cfg.data.dataset_type.lower() == '7scenes' else 5000
-    model.top_n(top_voxels)
+    model.top_n(cfg.data.n_of_voxels)
 
     # create a log file and redirect stdout there
     f, original_stdout = redirect2log(cfg.root_dir, "results")
