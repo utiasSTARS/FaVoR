@@ -17,7 +17,7 @@ class SevScenesDataloader(Dataloader):
                 "Scene must be one among: 'chess', 'pumpkin', 'fire', 'heads', 'office', 'redkitchen', 'stairs'")
         super().__init__(data_path, scene)
         self.net_vlad_path = path.join("./datasets", 'densevlad', '7-Scenes', f'{self.scene}_top10.txt')
-
+        self.load_vlad()
 
     def load_data(self) -> None:
         # Create the camera
