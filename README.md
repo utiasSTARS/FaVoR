@@ -4,11 +4,11 @@
 <br />
 <div align="center">
 
-<h2 align="center">The Best of Both the Worlds:<br>Sparse Voxelixed Feature Renderer
+<h2 align="center">FaVoR: Features via Voxel Rendering for Camera Relocalization
 </h2>
 
   <p align="center">
-A feature renderer for 3D feature points representation for robust robotics localization.
+A feature renderer for 3D feature points representation for robust camera localization.
     <br/>
     <a href="https://papers.starslab.ca/favor/">Webpage</a>
     ·
