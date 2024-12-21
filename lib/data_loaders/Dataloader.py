@@ -70,6 +70,18 @@ class Dataloader:
         for line in tqdm(self.gt_lines):
             yield self.line2data(line)
 
+    def get_test_line_at(self, i: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Returns a single test data line at index `i`.
+
+        Args:
+            i (int): The index of the test data line to return.
+
+        Returns:
+            tuple: A processed test data containing an image, a ground truth transformation matrix and a prior pose.
+        """
+        return self.line2data(self.test_lines[i], test=True)
+
     def get_test(self) -> Generator[Tuple[np.ndarray, np.ndarray, np.ndarray], None, None]:
         """
         Returns an iterator that yields test data, processed from the ground truth lines.
@@ -82,8 +94,6 @@ class Dataloader:
         """
         for line in tqdm(self.test_lines):
             yield self.line2data(line, test=True)
-
-    from typing import Union, Tuple
 
     def line2data(self, line: str, test: bool = False) -> Union[
         Tuple[np.ndarray, np.ndarray],

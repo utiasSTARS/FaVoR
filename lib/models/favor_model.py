@@ -68,7 +68,7 @@ class FaVoRmodel(nn.Module):
         # Retain the top-N voxels and their corresponding points
         self.voxels = nn.ModuleList([self.voxels[i] for i in indices])
         self.pts = self.pts[indices]
-    
+
     def get_n_voxels(self) -> int:
         """
         Get the number of voxel models.

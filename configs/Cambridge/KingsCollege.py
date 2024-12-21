@@ -1,7 +1,7 @@
 _base_ = '../default_base.py'
 
-expname = 'KingsCollege_Cambridge'
-basedir = './logs/Cambridge_release'
+expname = 'KingsCollege'
+basedir = './logs/Cambridge'
 
 data = dict(
     scene='KingsCollege',

@@ -1,39 +1,16 @@
 import copy
-import gc
 import os
 import sys
 import time
 
-import numpy as np
 import cv2
-from scipy.spatial.transform import Rotation
-from tqdm import tqdm
 
 from lib.utils_favor.file_utils import store_obj
-from lib.utils_favor.geom_utils import pose_error, IterativePnP, matcher_fast
+from lib.utils_favor.geom_utils import pose_error, IterativePnP
 from lib.utils_favor.log_utils import print_info, print_success
 from lib.utils_favor.misc_utils import seed_env, init_device, parse_args, create_dataloader, \
-    create_tracker, load_model, redirect2log, model2channels, log_results
-from lib.utils_favor.visualizer_utils import score_to_rgb, visualize_camera_poses, visualize_matches
+    create_tracker, load_model, redirect2log, model2channels, log_results, load_model_hf
 from lib.models.favor_model import FaVoRmodel
-
-
-def test(model, tracker, cfg, visualization=False):
-    if visualization:
-        cv2.destroyAllWindows()
-
-    # store the errors
-    out_dir = os.path.join(cfg.basedir, cfg.expname)
-    out_dir = os.path.join(out_dir, cfg.data.net_model)
-    out_dir = os.path.join(out_dir, "results")
-
-    print_info(f"Storing results in: {out_dir}")
-    os.makedirs(out_dir, exist_ok=True)
-    store_obj(
-        obj=[init_dist_errors, init_angle_errors, estimated_dist_errors, estimated_angle_errors,
-             outliers_estimates, matches_per_iter, svfr_estimates, count_tests, len(model.voxels)],
-        path=os.path.join(out_dir, f"results_{time_in_seconds}.obj"))
-
 
 if __name__ == '__main__':
     # to ensure reproducibility
@@ -52,7 +29,7 @@ if __name__ == '__main__':
                              path=cfg.root_dir, distortion=dataloader.camera.distortion, log=False)
 
     # load the model
-    model = load_model(cfg.root_dir, FaVoRmodel)
+    model = load_model_hf(cfg.root_dir, FaVoRmodel)
 
     if model is None:
         raise Exception("Model not loaded, train a model first!")
@@ -92,12 +69,20 @@ if __name__ == '__main__':
 
     time_in_seconds = int(time.time() - starting_time_sec)
     # log results
-    # cfg, init_dist_errors, init_angle_errors, estimated_dist_errors, estimated_angle_errors, svfr_estimates,
-    #                 matches_per_iter, count_tests, dense_vlad=False
     log_results(cfg, tot_iter, init_dist_errors, init_angle_errors, iter_pnp.estimated_dist_errors,
                 iter_pnp.estimated_angle_errors, iter_pnp.matches_per_iter, model.get_n_voxels(), dense_vlad=True)
 
     # store the results:
+    out_dir = os.path.join(cfg.basedir, cfg.expname)
+    out_dir = os.path.join(out_dir, cfg.data.net_model)
+    out_dir = os.path.join(out_dir, "results")
+
+    print_info(f"Storing results in: {out_dir}")
+    os.makedirs(out_dir, exist_ok=True)
+    store_obj(
+        obj=[init_dist_errors, init_angle_errors, iter_pnp.estimated_dist_errors, iter_pnp.estimated_angle_errors,
+             iter_pnp.matched_landmarks, iter_pnp.estimated_kpts, iter_pnp.favor_estimates, len(model.voxels)],
+        path=os.path.join(out_dir, f"results_{int(time.time())}.obj"))
 
     sys.stdout = original_stdout
     print_success("Testing done!")

@@ -15,6 +15,8 @@ import glob
 import torch
 from typing import Tuple, List
 
+from huggingface_hub import hf_hub_download
+
 from lib.data_loaders.CambridgeDataloader import CambridgeDataloader
 from lib.data_loaders.SevScenesDataloader import SevScenesDataloader
 from lib.data_loaders.Dataloader import Dataloader
@@ -239,6 +241,56 @@ def print_stats(name: str, data: np.array):
     print_info(f"Min {name}: {np.min(data)}")
     print_info(f"Median {name}: {np.median(data)}")
     print_info(f"Std {name}: {np.std(data)}")
+
+
+def from_pretrained(base_path, dataset, scene, network) -> str:
+    """
+    Download a model from Hugging Face Hub.
+
+    Args:
+        base_path (str): Path to the base directory containing the model checkpoints.
+        dataset (str): The dataset name.
+        scene (str): The scene name.
+        network (str): The network name.
+
+    Returns:
+        str: The path to the downloaded model.
+    """
+    # Define the model path in the repo
+    model_filename = f"{dataset}/{scene}/{network}/model_ckpts/model_last.tar"
+
+    # create dir if not exists must be something like
+
+    # Download the model from Hugging Face Hub
+    repo_id = "viciopoli/FaVoR"
+    model_path = hf_hub_download(repo_id=repo_id,
+                                 filename=model_filename,
+                                 cache_dir=base_path)
+
+    return model_path
+
+
+def load_model_hf(base_path, model_class, dataset, scene, network):
+    """
+    Load a model and if it does not exist download it from Hugging Face Hub.
+
+    Args:
+        base_path (str): Path to the base directory containing the model checkpoints.
+        model_class (class): The model class to initialize.
+        scene (str): The scene name.
+        network (str): The network name.
+    """
+
+    # check if file exists
+    if not os.path.isfile(os.path.join(base_path, 'model_ckpts', 'model_last.tar')):
+        # create dir if not exists
+        os.makedirs(base_path, exist_ok=True)
+        print_info("Download the model from Hugging Face Hub")
+        base_path = from_pretrained(base_path, dataset, scene, network)
+        # remove "model_ckpts/model_last.tar" from the base_path string
+        base_path = base_path.split("model_ckpts/model_last.tar")[0]
+
+    return load_model(base_path, model_class)
 
 
 def load_model(base_path, model_class, top_n=None) -> torch.nn.Module:
