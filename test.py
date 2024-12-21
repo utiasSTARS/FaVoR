@@ -29,7 +29,7 @@ if __name__ == '__main__':
                              path=cfg.root_dir, distortion=dataloader.camera.distortion, log=False)
 
     # load the model
-    model = load_model_hf(cfg.root_dir, FaVoRmodel)
+    model = load_model_hf(cfg.root_dir, FaVoRmodel, cfg.data.dataset_type, cfg.data.scene, cfg.data.net_model)
 
     if model is None:
         raise Exception("Model not loaded, train a model first!")
