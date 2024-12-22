@@ -20,7 +20,7 @@ scenes=("ShopFacade" "KingsCollege" "GreatCourt" "OldHospital" "StMarysChurch")
 networks=("alike-s" "alike-t" "superpoint")
 
 test_cambrdige() {
-    echo "Testing Cambridge landmark: $1"
+    echo "Testing Cambridge landmark: $1, with network: $2"
     python test.py --config "configs/Cambridge/$1.py" --net_model "$2" --vox_side "${vox_side}"
     echo "Done tracking Cambridge landmark: $1"
 }

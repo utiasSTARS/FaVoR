@@ -1,17 +1,16 @@
-# ----------------------------------------------------------------------------
-# -                        Open3D: www.open3d.org                            -
-# ----------------------------------------------------------------------------
-# Copyright (c) 2018-2024 www.open3d.org
-# SPDX-License-Identifier: MIT
-# ----------------------------------------------------------------------------
+from open3d.visualization import gui, rendering
 
-import open3d.visualization.gui as gui
-import os.path
+from lib.visualizer.o3dview import Favoro3d
+from lib.visualizer.renderer_new import FavorRender
 
 
+class FavorWidgets:
 
-class ExampleWindow:
-    def __init__(self):
+    def __init__(self, cfg, o3dwin: Favoro3d, renderer: FavorRender):
+        self.o3dwin = o3dwin
+        self.renderer = renderer
+        self.renderer.current_image()
+
         self.window = gui.Application.instance.create_window("FaVoR Widgets", 400, 350)
 
         w = self.window  # for more concise code
@@ -24,13 +23,13 @@ class ExampleWindow:
         # Match threshold slider
         match_slider = gui.Slider(gui.Slider.DOUBLE)
         match_slider.set_limits(0, 1)
-        match_slider.double_value = 0.1
+        match_slider.double_value = cfg.data.match_threshold[cfg.data.net_model]
         match_slider.set_on_value_changed(lambda value: self.change_match_thr(value))
 
         # Reprojection error slider
         repr_error_slider = gui.Slider(gui.Slider.DOUBLE)
         repr_error_slider.set_limits(0, 20)
-        repr_error_slider.double_value = 7.5
+        repr_error_slider.double_value = cfg.data.reprojection_error[cfg.data.net_model]
         repr_error_slider.set_on_value_changed(lambda value: self.change_repr_error_thr(value))
 
         # Solve localization button
@@ -84,19 +83,24 @@ class ExampleWindow:
     # Define methods that might be used for handling events
     def on_quit(self):
         print("Quit")
+        self.o3dwin.stop()
+        self.window.stop()
         gui.Application.instance.quit()
 
     def change_match_thr(self, value):
         # Placeholder for match threshold change logic
         print(f"Match threshold set to {value}")
+        self.renderer.iter_pnp.match_threshold = value
 
     def change_repr_error_thr(self, value):
         # Placeholder for reprojection error threshold change logic
         print(f"Reprojection error set to {value}")
+        self.renderer.iter_pnp.reprojection_error = value
 
     def localize_image(self):
         # Placeholder for image localization logic
         print("Localizing image...")
+        self.renderer.localize_image()
 
     def localize_view(self):
         # Placeholder for current view localization logic
@@ -105,26 +109,14 @@ class ExampleWindow:
     def rotate_view(self):
         # Placeholder for view rotation logic
         print("Rotating view...")
+        self.o3dwin.rotate()
 
     def next_image(self):
         # Placeholder for next image logic
         print("Next image...")
+        self.renderer.next_image()
 
     def prev_image(self):
         # Placeholder for previous image logic
         print("Previous image...")
-
-
-def main():
-    # We need to initialize the application, which finds the necessary shaders for
-    # rendering and prepares the cross-platform window abstraction.
-    gui.Application.instance.initialize()
-
-    w = ExampleWindow()
-
-    # Run the event loop. This will not return until the last window is closed.
-    gui.Application.instance.run()
-
-
-if __name__ == "__main__":
-    main()
+        self.renderer.previous_image()
