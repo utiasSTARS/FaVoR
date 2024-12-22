@@ -1,3 +1,9 @@
+#  Copyright (c) 2023 Vincenzo Polizzi <vincenzo dot polizzi at mail dot utoronto dot ca>
+#  (Space and Terrestrial Autonomous Robotic Systems Laboratory, University of Toronto,
+#  Institute for Aerospace Studies).
+#  This file is subject to the terms and conditions defined in the file
+#  'LICENSE', which is part of this source code package.
+
 import cv2
 import numpy as np
 

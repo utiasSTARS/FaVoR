@@ -1,7 +1,13 @@
+#  Copyright (c) 2023 Vincenzo Polizzi <vincenzo dot polizzi at mail dot utoronto dot ca>
+#  (Space and Terrestrial Autonomous Robotic Systems Laboratory, University of Toronto,
+#  Institute for Aerospace Studies).
+#  This file is subject to the terms and conditions defined in the file
+#  'LICENSE', which is part of this source code package.
+
 from open3d.visualization import gui, rendering
 
 from lib.visualizer.o3dview import Favoro3d
-from lib.visualizer.renderer_new import FavorRender
+from lib.visualizer.renderer import FavorRender
 
 
 class FavorWidgets:

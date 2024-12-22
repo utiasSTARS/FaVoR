@@ -1,23 +1,14 @@
-import os
-import random, argparse
-import threading
-
-import cv2
-import mmengine as mmcv
-import numpy as np
-from scipy.spatial.transform import Rotation
-from tqdm import tqdm
+#  Copyright (c) 2023 Vincenzo Polizzi <vincenzo dot polizzi at mail dot utoronto dot ca>
+#  (Space and Terrestrial Autonomous Robotic Systems Laboratory, University of Toronto,
+#  Institute for Aerospace Studies).
+#  This file is subject to the terms and conditions defined in the file
+#  'LICENSE', which is part of this source code package.
 
 from lib.models.favor_model import FaVoRmodel
-from lib.trackers.ALIKE_Tracker import AlikeTracker
-from lib.trackers.SuperPoint_Tracker import SuperPointTracker
-from lib.utils_favor.misc_utils import load_model, print_info, print_error, model2channels, model_size, seed_env, \
+from lib.utils_favor.misc_utils import print_info, model_size, seed_env, \
     init_device, parse_args, create_dataloader, create_tracker, load_model_hf
 from lib.visualizer.o3dview import Favoro3d
-from lib.visualizer.open3dVisualizer import Visualizer
-import torch
-from lib.visualizer.renderer import Renderer
-from lib.visualizer.renderer_new import FavorRender
+from lib.visualizer.renderer import FavorRender
 from lib.visualizer.widgets import FavorWidgets
 import open3d.visualization.gui as gui
 
