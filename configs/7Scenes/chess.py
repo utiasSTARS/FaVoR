@@ -1,6 +1,6 @@
 _base_ = '../default_base.py'
 
-expname = 'chess_7scenes'
+expname = 'chess'
 basedir = './logs/7Scenes'
 
 data = dict(

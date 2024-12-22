@@ -9,6 +9,8 @@ import numpy as np
 import cv2
 import poselib as plib
 from typing import Tuple, List
+
+import torch
 from scipy.spatial.transform import Rotation
 from scipy.optimize import least_squares
 
@@ -489,6 +491,7 @@ class IterativePnP:
         self.favor_estimates = []
         self.matches_per_iter = [0, 0, 0]
 
+
     def __call__(self, image, pose_gt, pose_prior):
         # Reset values
         # self._initialize()
@@ -504,8 +507,9 @@ class IterativePnP:
         while iterate < self.max_iter:
             iterate += 1
             # Match points
-            matched_rendered_kpts, matched_target_kpts, matched_landmarks, rendered_pts, rendered_landmasks, scores = matcher_fast(
-                self.model, image, self.tracker, self.K, cam_poses_list[-1], self.match_threshold)
+            with torch.no_grad():
+                matched_rendered_kpts, matched_target_kpts, matched_landmarks, rendered_pts, rendered_landmasks, scores = matcher_fast(
+                    self.model, image, self.tracker, self.K, cam_poses_list[-1], self.match_threshold)
 
             # Early stop if no matches found
             if len(matched_landmarks) == 0:

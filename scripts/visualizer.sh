@@ -17,7 +17,7 @@ scene_cambridge=("ShopFacade" "KingsCollege" "OldHospital" "StMarysChurch")
 for scene in "${scene_7scenes[@]}"; do
     if [[ $scene == $scene_name ]]; then
         echo "Running visualizer for 7Scenes dataset"
-        python visualizer.py --config configs/7Scenes/${scene_name}.py --vox_side 3 --net_model alike-l
+        python3 visualizer.py --config configs/7Scenes/${scene_name}.py --vox_side 3 --net_model alike-l
         exit
     fi
 done
@@ -26,7 +26,7 @@ done
 for scene in "${scene_cambridge[@]}"; do
     if [[ $scene == $scene_name ]]; then
         echo "Running visualizer for Cambridge dataset"
-        python visualizer.py --config configs/Cambridge/${scene_name}.py --vox_side 3 --net_model alike-l
+        python3 visualizer.py --config configs/Cambridge/${scene_name}.py --vox_side 3 --net_model alike-l
         exit
     fi
 done

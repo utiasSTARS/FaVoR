@@ -14,17 +14,13 @@ from lib.data_loaders.Dataloader import Dataloader
 
 
 class CambridgeDataloader(Dataloader):
-    scene2number = {'KingsCollege': 0, 'GreatCourt': 1, 'OldHospital': 2, 'ShopFacade': 3, 'StMarysChurch': 4}
-
     def __init__(self, data_path, scene):
         if not (scene in ['GreatCourt', 'KingsCollege', 'OldHospital', 'ShopFacade', 'StMarysChurch', 'Street']):
             raise Exception(
                 "Scene must be one among: 'GreatCourt', 'KingsCollege', 'OldHospital', 'ShopFacade', 'StMarysChurch', 'Street'")
         super().__init__(data_path, scene)
 
-        self.net_vlad_path = path.join("./datasets", 'densevlad', 'Cambridge',
-                                       f'pairs-query-netvlad10.txt' if self.scene2number[scene] == 0 else
-                                       f'pairs-query-netvlad10.txt.{self.scene2number[scene]}')
+        self.net_vlad_path = path.join("./datasets", 'densevlad', 'Cambridge', f'{scene}-netvlad10.txt')
         self.load_vlad()
 
     def load_data(self) -> None:

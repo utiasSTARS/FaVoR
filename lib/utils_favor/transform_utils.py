@@ -42,7 +42,6 @@ def CV2B(M0: np.ndarray) -> np.ndarray:
     T[2, :] *= -1  # Reverse flipping the world upside down
     T = T[[1, 0, 2, 3], :]  # Reverse swapping y and z axes
     T[0:3, 1] *= -1  # Reverse flipping the y axis
-    # T[0:3, 2] *= -1  # Reverse flipping the z axis
     return T
 
 
