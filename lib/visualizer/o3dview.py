@@ -21,8 +21,6 @@ class Favoro3d:
         self.vis.add_geometry(o3d.geometry.TriangleMesh.create_coordinate_frame(
             size=.2, origin=[0, 0, 0]))
 
-        self.vis.register_animation_callback(self.view_callback)
-
         # create camera frustum
         self.cam_frustum_points = self.create_camera_model(K[0, 0], H, W)
 
@@ -50,18 +48,15 @@ class Favoro3d:
 
         self.current_view = None
 
+        self.vis.register_animation_callback(self.view_callback)
+
     def view_callback(self, vis):
         ctr = vis.get_view_control()
         cam = copy.deepcopy(ctr.convert_to_pinhole_camera_parameters())
         self.pose = torch.tensor(copy.deepcopy(cam.extrinsic), device='cuda', dtype=torch.float32)
 
-        if self.prev_pose is None or not torch.eq(self.prev_pose, self.pose).all():
-            c_view = copy.deepcopy(
-                cv2.cvtColor(np.asarray(vis.capture_screen_float_buffer(True)), cv2.COLOR_BGR2RGB))
-            self.current_view = to8b(c_view)
-
         if self.rotate_bool:
-            ctr.rotate(20.0, 0.0)
+            ctr.rotate(15.0, 0.0)
 
         # self.renderer.update_image()
 
@@ -90,10 +85,10 @@ class Favoro3d:
         focal_m = px2m(f)  # https://www.unitconverters.net/typography/pixel-x-to-meter.htm
         h = px2m(H) / 2
         w = px2m(W) / 2
-        left_top = np.array([-w, h, focal_m])
-        right_top = np.array([w, h, focal_m])
-        left_bottom = np.array([-w, -h, focal_m])
-        right_bottom = np.array([w, -h, focal_m])
+        left_top = np.array([-w, h, -focal_m])
+        right_top = np.array([w, h, -focal_m])
+        left_bottom = np.array([-w, -h, -focal_m])
+        right_bottom = np.array([w, -h, -focal_m])
 
         return np.array([
             [0.0, 0.0, 0.0],  # Camera center
@@ -126,6 +121,7 @@ class Favoro3d:
     def prior_camera_pose_representation(self, pose):
         # Convert pose to numpy if it's a torch tensor
         p = pose.detach().cpu().numpy() if isinstance(pose, torch.Tensor) else pose
+        p = CV2O3D(p)
 
         # Extract translation and rotation from the pose matrix
         translation = p[:3, 3]
@@ -151,6 +147,8 @@ class Favoro3d:
         p = CV2O3D(pose)
         translation = p[:3, 3]
         rotation = p[:3, :3]
+
+        curr_pose = CV2O3D(curr_pose)
 
         # Update the line set (representing the camera pose)
         self.line_set.points = o3d.utility.Vector3dVector([curr_pose[:3, 3], translation])

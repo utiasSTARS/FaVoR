@@ -31,8 +31,7 @@ class FavorRender:
                                      tracker=tracker,
                                      visualization=True)
 
-        cv2.namedWindow('Matches', cv2.WINDOW_KEEPRATIO)
-        # cv2.namedWindow('FaVoR Matches Visualizer', cv2.WINDOW_NORMAL)
+        cv2.namedWindow('Matches', cv2.WINDOW_AUTOSIZE)
 
     def set_reprojection_error(self, reprojection_error):
         self.iter_pnp.reprojection_error = reprojection_error
@@ -48,11 +47,13 @@ class FavorRender:
         self.pointer += 1
         self.current_img, self.current_gt_pose, self.current_prior_pose = self.dataloader.get_test_line_at(self.pointer)
         self.update_image()
+        return self.current_gt_pose, self.current_prior_pose
 
     def previous_image(self):
         self.pointer -= 1
         self.current_img, self.current_gt_pose, self.current_prior_pose = self.dataloader.get_test_line_at(self.pointer)
         self.update_image()
+        return self.current_gt_pose, self.current_prior_pose
 
     def update_image(self):
         # resize o3d view to the same size as the current image
@@ -62,6 +63,9 @@ class FavorRender:
     def localize_image(self):
         self.iter_pnp(self.current_img, self.current_gt_pose, self.current_prior_pose)
         # self.update_image()
+        if self.iter_pnp.estimated_angle_errors[2] is not np.inf:
+            return self.iter_pnp.camera_poses_list[-1][-1], self.iter_pnp.matched_landmarks[-1][-1]
+        return None
 
     def stop(self):
         cv2.destroyAllWindows()

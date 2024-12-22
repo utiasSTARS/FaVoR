@@ -100,7 +100,10 @@ class FavorWidgets:
     def localize_image(self):
         # Placeholder for image localization logic
         print("Localizing image...")
-        self.renderer.localize_image()
+        pose, landmarks = self.renderer.localize_image()
+        if pose is not None:
+            self.o3dwin.est_camera_pose_representation(self.renderer.current_gt_pose, pose)
+            self.o3dwin.rays_representation(landmarks, pose)
 
     def localize_view(self):
         # Placeholder for current view localization logic
@@ -114,9 +117,15 @@ class FavorWidgets:
     def next_image(self):
         # Placeholder for next image logic
         print("Next image...")
-        self.renderer.next_image()
+        current_gt_pose, current_prior_pose = self.renderer.next_image()
+
+        self.o3dwin.gt_camera_pose_representation(current_gt_pose)
+        self.o3dwin.prior_camera_pose_representation(current_prior_pose)
 
     def prev_image(self):
         # Placeholder for previous image logic
         print("Previous image...")
-        self.renderer.previous_image()
+        current_gt_pose, current_prior_pose = self.renderer.previous_image()
+
+        self.o3dwin.gt_camera_pose_representation(current_gt_pose)
+        self.o3dwin.prior_camera_pose_representation(current_prior_pose)

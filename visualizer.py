@@ -57,16 +57,13 @@ if __name__ == '__main__':
     o3dwin.prior_camera_pose_representation(prior_pose)
 
     o3dwin.create_voxel(model.get_bboxes())
-    o3dwin.vis.run()
 
     renderer = FavorRender(cfg=cfg, tracker=tracker, model=model, dataloader=dataloader)
     renderer.update_image()
 
     w = FavorWidgets(cfg=cfg, o3dwin=o3dwin, renderer=renderer)
 
-    # o3dwin.run()
-
-    gui.Application.instance.run()
+    o3dwin.run()
 
     print_info('Done')
 
