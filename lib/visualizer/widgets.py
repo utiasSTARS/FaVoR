@@ -110,6 +110,7 @@ class FavorWidgets:
         if pose is not None:
             self.o3dwin.est_camera_pose_representation(self.renderer.current_gt_pose, pose)
             self.o3dwin.rays_representation(landmarks, pose)
+            self.o3dwin.set_view(pose)
 
     def localize_view(self):
         # Placeholder for current view localization logic

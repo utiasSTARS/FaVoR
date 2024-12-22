@@ -54,6 +54,8 @@ class Favoro3d:
 
         self.current_view = None
 
+        self.camera = None
+
         self.vis.register_animation_callback(self.view_callback)
 
     def view_callback(self, vis):
@@ -64,7 +66,19 @@ class Favoro3d:
         if self.rotate_bool:
             ctr.rotate(15.0, 0.0)
 
+        if self.camera is not None:
+            self.camera.intrinsic = cam.intrinsic
+            ctr.convert_from_pinhole_camera_parameters(self.camera, allow_arbitrary=True)
+            self.camera = None
+
         # self.renderer.update_image()
+
+    def set_view(self, pose):
+        pose_view = CV2O3D(copy.deepcopy(pose))
+        pose_view[0:3, 2] *= -1
+
+        self.camera = o3d.camera.PinholeCameraParameters()
+        self.camera.extrinsic = np.linalg.inv(pose_view)
 
     def get_view(self):
         if self.current_view is None:
