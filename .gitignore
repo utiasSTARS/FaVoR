@@ -6,5 +6,5 @@ logs*
 .idea/*
 *.so
 runs/
-datasets/
+datasets
 profiler_logs/
