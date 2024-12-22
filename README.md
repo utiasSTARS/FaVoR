@@ -24,29 +24,6 @@ A feature renderer for 3D feature points representation for robust camera locali
 [![Issues][issues-shield]][issues-url]
 [![Apache 2.0 License][license-shield]][license-url]
 
-<!-- TABLE OF CONTENTS -->
-<details>
-  <summary>Table of Contents</summary>
-  <ol>
-    <li>
-      <a href="#about">About</a>
-    </li>
-    <li>
-      <a href="#abstract">Abstract</a>
-    </li>
-    <li><a href="#structure">Structure</a></li>
-    <li><a href="#usage">Usage</a></li>
-        <ul><a href="#requirements">Requirements</a></ul>
-        <ul><a href="#installation">How to Run the Code</a></ul>
-        <ul><a href="#docker">Docker</a></ul>
-        <ul><a href="#interface">Interface</a></ul>
-        <ul><a href="#demo">Demo</a></ul>
-    <li><a href="datasets">Datasets</a></li>
-    <li><a href="#license">License</a></li>
-    <li><a href="#acknowledgments">Acknowledgments</a></li>
-  </ol>
-</details>
-
 ## About
 
 <div align="center">
