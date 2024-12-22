@@ -70,7 +70,7 @@ class FavorWidgets:
         layout.add_child(repr_error_slider)
         layout.add_child(gui.Label("Solve localization"))
         layout.add_child(loc_button)
-        layout.add_child(loc_current_button)
+        # layout.add_child(loc_current_button)
         layout.add_child(self.rotate_button)
         layout.add_child(gui.Label("Navigate images"))
         layout.add_child(button_row)
@@ -90,7 +90,7 @@ class FavorWidgets:
     def on_quit(self):
         print("Quit")
         self.o3dwin.stop()
-        self.window.stop()
+        self.renderer.stop()
         gui.Application.instance.quit()
 
     def change_match_thr(self, value):
