@@ -162,7 +162,7 @@ To run the visualizer, use the following command:
 
 ```bash
 $ xhost +local:docker
-$ docker run --net=host --rm -v ./logs/:/favor/logs -v ./datasets/:/favor/datasets --privileged --gpus all -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -it favor bash /favor/scripts/visualizer.sh SCENE_NAME
+$ docker run --net=host --rm -v ./logs/:/favor/logs -v ./datasets/:/favor/datasets --privileged --gpus all -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -it viciopoli/favor:latest bash /favor/scripts/visualizer.sh SCENE_NAME
 ```
 
 Make sure to replace `SCENE_NAME` with the scene name you want to visualize.
