@@ -73,7 +73,7 @@ maintaining lower memory and computational costs.
 Here are the steps to run the code and test the visualizer.
 We have a [Docker](#docker) image available to run the code, but you can also run it locally.
 If you choose to run it using Docker, make sure you have Docker installed and the NVIDIA Container Toolkit, and you can
-skip the [Requirements and Setup](#requirements-and-setup) section.
+skip the [Requirements and Setup](#requirements-and-setup) section and go directly to the [Dataset Download](#datastes-download) section.
 
 ### Requirements and Setup
 
@@ -114,7 +114,7 @@ $ cd lib/cuda
 $ ./build.sh
 ```
 
-#### Download Datastes
+### Datastes Download
 
 We used the [7-Scenes](https://www.microsoft.com/en-us/research/project/rgb-d-dataset-7-scenes/)
 and [Cambridge Landmarks](https://www.repository.cam.ac.uk/items/53788265-cb98-42ee-b85b-7a0cbc8eddb3) datasets for our
