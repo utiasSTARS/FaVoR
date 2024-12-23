@@ -7,3 +7,4 @@ einops==0.6.1
 overrides
 poselib==2.0.2
 open3d==0.16.0
+opencv-python~=4.5.5

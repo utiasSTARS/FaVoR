@@ -104,6 +104,13 @@ $ pip install torch-scatter==2.1.1 -f https://data.pyg.org/whl/torch-1.13.1+cu11
 $ pip install -r requirements.txt
 ```
 
+Now build the cuda modules as:
+
+```bash
+$ cd lib/cuda
+$ ./build.sh
+```
+
 #### Download Datastes
 
 We used the [7-Scenes](https://www.microsoft.com/en-us/research/project/rgb-d-dataset-7-scenes/)
@@ -114,6 +121,10 @@ experiments. You can download the datasets using the following script:
 $ bash scripts/download_datasets.sh
 ```
 
+This script will create the folder `datasets` and download the datasets,
+the [NetVLAD matches](https://cvg-data.inf.ethz.ch/pixloc_CVPR2021/), and
+the [COLMAP ground truth](https://github.com/tsattler/visloc_pseudo_gt_limitations/tree/main) for the 7-Scenes dataset.
+
 #### Create Logs Folder
 
 Create a folder to store the logs and the results.
@@ -121,11 +132,6 @@ Create a folder to store the logs and the results.
 ```bash
 $ mkdir logs
 ```
-
-This script will create the folder `datasets` and download the datasets,
-the [NetVLAD matches](https://cvg-data.inf.ethz.ch/pixloc_CVPR2021/), and
-the [COLMAP ground truth](https://github.com/tsattler/visloc_pseudo_gt_limitations/tree/main) for the 7-Scenes dataset.
-
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
