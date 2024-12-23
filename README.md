@@ -72,6 +72,11 @@ maintaining lower memory and computational costs.
 
 ## Usage
 
+Here are the steps to run the code and test the visualizer.
+We have a [Docker](#docker) image available to run the code, but you can also run it locally.
+If you choose to run it using Docker, make sure you have Docker installed and the NVIDIA Container Toolkit, and you can
+skip the [Requirements and Setup](#requirements-and-setup) section.
+
 ### Requirements and Setup
 
 The code was tested on Ubuntu 22.04 on with a RTX 4060.
