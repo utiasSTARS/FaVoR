@@ -114,10 +114,10 @@ download_densevlad_data() {
     for scene in "${cambridge_scenes[@]}"; do
         if [ "$1" == "all" ]; then
           echo "Downloading $scene..."
-          wget -O "$download_dir/${scene}_top10.txt" "$url/Cambridge-Landmarks/$scene/pairs-query-netvlad10.txt"
+          wget -O "$download_dir/${scene}-netvlad10.txt" "$url/Cambridge-Landmarks/$scene/pairs-query-netvlad10.txt"
         elif [ "$1" == scene ]; then
           echo "Downloading $scene..."
-          wget -O "$download_dir/${scene}_top10.txt" "$url/Cambridge-Landmarks/$scene/pairs-query-netvlad10.txt"
+          wget -O "$download_dir/${scene}-netvlad10.txt" "$url/Cambridge-Landmarks/$scene/pairs-query-netvlad10.txt"
         fi
     done
 
@@ -143,7 +143,6 @@ if [ -z "$1" ]; then
     echo "No argument provided. Downloading all datasets..."
     download_densevlad_data all
     download_Cambridge all
-    download_7scenes all
 else
     download_densevlad_data $1
     download_Cambridge $1
