@@ -35,7 +35,7 @@ class CambridgeDataloader(Dataloader):
                 focal += float(reconstruction[i].split()[1])
             focal /= num_cams
 
-        scale = 1920. / 1024.
+        scale = 1920. / 512.
         focal = focal / scale
 
         H, W = int(1080. / scale), int(1920. / scale)
