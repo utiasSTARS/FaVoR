@@ -27,9 +27,7 @@ A feature renderer for 3D feature points representation for robust camera locali
 ## About
 
 <div align="center">
-  <a href="https://github.com/jpl-x/x_multi_agent">
     <img src="media/video_desc_invariance.gif" alt="demo" >
-  </a>
 </div>
 
 This is the code for the paper **FaVoR: Features via Voxel Rendering for Camera Relocalization**
