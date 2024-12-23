@@ -73,7 +73,8 @@ maintaining lower memory and computational costs.
 Here are the steps to run the code and test the visualizer.
 We have a [Docker](#docker) image available to run the code, but you can also run it locally.
 If you choose to run it using Docker, make sure you have Docker installed and the NVIDIA Container Toolkit, and you can
-skip the [Requirements and Setup](#requirements-and-setup) section and go directly to the [Dataset Download](#datastes-download) section.
+skip the [Requirements and Setup](#requirements-and-setup) section and go directly to
+the [Dataset Download](#datastes-download) section.
 
 ### Requirements and Setup
 
@@ -82,36 +83,36 @@ The code was tested on Ubuntu 22.04 on with a RTX 4060.
 Clone the repository and install the requirements.
 
 ```bash
-$ git clone --recursive https://github.com/utiasSTARS/FaVoR.git
-$ cd FaVoR
+git clone --recursive https://github.com/utiasSTARS/FaVoR.git
+cd FaVoR
 ```
 
 **Note**: The `--recursive` flag is required to clone the submodules. If you forgot to add it, you can run the following
 command to clone the submodules.
 
 ```bash
-$ git submodule update --init --recursive
+git submodule update --init --recursive
 ```
 
 Use Conda to create a new environment and install the requirements.
 
 ```bash
-$ conda create -n favor python=3.10
-$ conda activate favor
-$ conda install -c "nvidia/label/cuda-11.7.0" cuda-toolkit
+conda create -n favor python=3.10
+conda activate favor
+conda install -c "nvidia/label/cuda-11.7.0" cuda-toolkit
 ```
 
 ```bash
-$ pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
-$ pip install torch-scatter==2.1.1 -f https://data.pyg.org/whl/torch-1.13.1+cu117.html
-$ pip install -r requirements.txt
+pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
+pip install torch-scatter==2.1.1 -f https://data.pyg.org/whl/torch-1.13.1+cu117.html
+pip install -r requirements.txt
 ```
 
 Now build the cuda modules as:
 
 ```bash
-$ cd lib/cuda
-$ ./build.sh
+cd lib/cuda
+./build.sh
 ```
 
 ### Datastes Download
@@ -121,19 +122,26 @@ and [Cambridge Landmarks](https://www.repository.cam.ac.uk/items/53788265-cb98-4
 experiments. You can download the datasets using the following script:
 
 ```bash
-$ bash scripts/download_datasets.sh
+bash scripts/download_datasets.sh
 ```
 
 This script will create the folder `datasets` and download the datasets,
 the [NetVLAD matches](https://cvg-data.inf.ethz.ch/pixloc_CVPR2021/), and
 the [COLMAP ground truth](https://github.com/tsattler/visloc_pseudo_gt_limitations/tree/main) for the 7-Scenes dataset.
 
+**Note**: If only one scene wants to be downloaded, you can specify the scene name as an argument to the script. For
+example:
+
+```bash 
+bash scripts/download_datasets.sh chess
+```
+
 #### Create Logs Folder
 
 Create a folder to store the logs and the results.
 
 ```bash
-$ mkdir logs
+mkdir logs
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -147,8 +155,8 @@ We provide a Docker image to run the code, please make sure you have Docker inst
 To run the visualizer, use the following command:
 
 ```bash
-$ xhost +local:docker
-$ docker run --net=host --rm -v ./logs/:/favor/logs -v ./datasets/:/favor/datasets --privileged --gpus all -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -it viciopoli/favor:latest bash /favor/scripts/visualizer.sh SCENE_NAME
+xhost +local:docker
+docker run --net=host --rm -v ./logs/:/favor/logs -v ./datasets/:/favor/datasets --privileged --gpus all -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -it viciopoli/favor:latest bash /favor/scripts/visualizer.sh SCENE_NAME
 ```
 
 Make sure to replace `SCENE_NAME` with the scene name you want to visualize.
@@ -178,8 +186,8 @@ From the Cambridge Landmarks dataset:
 To test the code, you can run the following command:
 
 ```bash
-$ conda activate favor
-$ bash scripts/vizualize.sh SCENE_NAME
+conda activate favor
+bash scripts/vizualize.sh SCENE_NAME
 ```
 
 Make sure to replace `SCENE_NAME` with the scene name you want to visualize.
