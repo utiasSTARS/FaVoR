@@ -138,6 +138,7 @@ if [ -z "$1" ]; then
     echo "No argument provided. Downloading all datasets..."
     download_densevlad_data all
     download_Cambridge all
+    download_7scenes all
 else
     download_densevlad_data $1
     download_Cambridge $1
