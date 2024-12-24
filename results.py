@@ -103,7 +103,7 @@ def print_results_per_network(results_voc, count, net):
         print("\\cline{2-7}")
 
 
-def main():
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         '--logs_dir', required=True,
@@ -145,6 +145,3 @@ def main():
     print(f"Average results per network:")
     print_results_per_network(results_voc, count, net)
 
-
-if __name__ == "__main__":
-    main()
