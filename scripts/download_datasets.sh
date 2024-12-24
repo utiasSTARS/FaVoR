@@ -101,7 +101,7 @@ download_Cambridge() {
     done
 }
 
-
+# Function to download DenseVLAD data
 download_densevlad_data() {
     url='https://cvg-data.inf.ethz.ch/pixloc_CVPR2021/'
 
@@ -112,10 +112,7 @@ download_densevlad_data() {
 
     echo "Downloading the DenseVLAD for Cambridge..."
     for scene in "${cambridge_scenes[@]}"; do
-        if [ "$1" == "all" ]; then
-          echo "Downloading $scene..."
-          wget -O "$download_dir/${scene}-netvlad10.txt" "$url/Cambridge-Landmarks/$scene/pairs-query-netvlad10.txt"
-        elif [ "$1" == scene ]; then
+        if [ "$1" == "all" ] || [ "$1" == "$scene" ]; then
           echo "Downloading $scene..."
           wget -O "$download_dir/${scene}-netvlad10.txt" "$url/Cambridge-Landmarks/$scene/pairs-query-netvlad10.txt"
         fi
@@ -128,15 +125,13 @@ download_densevlad_data() {
 
     echo "Downloading the DenseVLAD for 7-Scenes..."
     for scene in "${scenes_scenes[@]}"; do
-        if [ "$1" == "all" ]; then
-          echo "Downloading $scene..."
-          wget -P "$download_dir" "$url/7Scenes/7scenes_densevlad_retrieval/${scene}_top10.txt"
-        elif [ "$1" == scene ]; then
+        if [ "$1" == "all" ] || [ "$1" == "$scene" ]; then
           echo "Downloading $scene..."
           wget -P "$download_dir" "$url/7Scenes/7scenes_densevlad_retrieval/${scene}_top10.txt"
         fi
     done
 }
+
 
 # check if an argument was passed
 if [ -z "$1" ]; then
