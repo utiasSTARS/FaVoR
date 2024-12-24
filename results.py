@@ -120,7 +120,12 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    dataset_type = args.dataset
+    datasets = ['Cambridge', '7Scenes']
+    for dataset in datasets:
+        if dataset.lower() == args.dataset.lower():
+            dataset_type = dataset
+            break
+
     base_path = args.logs_dir
     net = args.net_model
 
