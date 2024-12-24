@@ -268,7 +268,7 @@ Template by [Best-README-Template](https://github.com/othneildrew/Best-README-Te
 
 [issues-url]: https://github.com/utiasSTARS/FaVoR/issues
 
-[license-shield]: https://img.shields.io/github/license/utiasSTARS/FaVoR.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/utiasSTARS/FaVoR?style=for-the-badge
 
 [license-url]: https://github.com/utiasSTARS/FaVoR/tree/main/LICENSE
 
