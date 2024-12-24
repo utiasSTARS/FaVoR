@@ -74,9 +74,11 @@ maintaining lower memory and computational costs.
 - **OS**: Ubuntu 22.04
 - **GPU**: RTX 4060 or higher
 - **[Docker](#docker)** (Optional): For containerized environments
-- *
-  *[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
-  ** (if using Docker)
+-
+    *
+
+*[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+** (if using Docker)
 
 If you choose to run our code using Docker, make sure you have Docker installed and the NVIDIA Container Toolkit, and
 you can
@@ -190,6 +192,14 @@ bash scripts/test_cambridge.sh NETWORK_NAME
 ```
 
 Replace `NETWORK_NAME` with one of: `alike-l`, `alike-n`, `alike-s`, `alike-t`, `superpoint`.
+
+To print the results:
+
+```bash
+python results.py --logs_dir ./logs/7Scenes --dataset 7scenes --net_model alike-l
+```
+
+Modify the `--logs_dir`, `--dataset`, and `--net_model` arguments as needed.
 
 ## Pretrained Models
 
