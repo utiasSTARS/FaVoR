@@ -109,11 +109,11 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         '--logs_dir', required=True,
-        help='Config file path (required)'
+        help='Logs file path (required)'
     )
     parser.add_argument(
         '--dataset', required=True,
-        help='Config file path (required)'
+        help='Dataset name (required) choose between Cambridge, 7Scenes'
     )
     parser.add_argument(
         '--net_model', type=str,
