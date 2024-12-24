@@ -29,8 +29,7 @@ A feature renderer for robust 3D feature point representation in camera relocali
     <img src="media/video_desc_invariance.gif" alt="demo" >
 </div>
 
-This is the codebase accompanying the paper *
-*[FaVoR: Features via Voxel Rendering for Camera Relocalization](https://arxiv.org/pdf/2409.07571)**
+This is the codebase accompanying the paper **[FaVoR: Features via Voxel Rendering for Camera Relocalization](https://arxiv.org/pdf/2409.07571)**
 by [Vincenzo Polizzi](https://polivi.iobii.com), [Marco Cannici](https://marcocannici.github.io/), [Davide Scaramuzza](http://rpg.ifi.uzh.ch/people_scaramuzza.html),
 and [Jonathan Kelly](https://starslab.ca/people/prof-jonathan-kelly/). Visit
 the [project webpage](https://papers.starslab.ca/favor/) for an overview.
@@ -74,11 +73,7 @@ maintaining lower memory and computational costs.
 - **OS**: Ubuntu 22.04
 - **GPU**: RTX 4060 or higher
 - **[Docker](#docker)** (Optional): For containerized environments
--
-    *
-
-*[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
-** (if using Docker)
+- **[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)** (if using Docker)
 
 If you choose to run our code using Docker, make sure you have Docker installed and the NVIDIA Container Toolkit, and
 you can
