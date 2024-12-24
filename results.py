@@ -1,10 +1,8 @@
 import argparse
 import os
 import pickle
-
 import numpy as np
 
-from lib.utils_favor.misc_utils import parse_args
 results_voc = {key: [[0.0] * 3, [0.0] * 3, [0.0] * 3, [0.0], [0.0, 0.0], [0.0] * 3, [0.0]] for key in ['alike-l', 'alike-n', 'alike-t', 'alike-s', 'superpoint']}
 keys_net = list(results_voc.keys())
 
